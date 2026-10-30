@@ -1,0 +1,10 @@
+{
+  "a": {
+    "host": "192.0.2.10", "user": "lab", "path": "/home/lab/cs-project-20261030",
+    "key": "~/.ssh/id_ed25519", "known_hosts": "~/.ssh/known_hosts", "password_env": "CNET_SUDO_A"
+  },
+  "b": {
+    "host": "192.0.2.11", "user": "lab", "path": "/home/lab/cs-project-20261030",
+    "key": "~/.ssh/id_ed25519", "known_hosts": "~/.ssh/known_hosts", "password_env": "CNET_SUDO_B"
+  }
+}

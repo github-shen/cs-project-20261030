@@ -1,0 +1,9 @@
+{
+  "mode": "listen",
+  "local_address": "02:00:00:00:00:01",
+  "peer_address": "02:00:00:00:00:02",
+  "psm": "0x1001",
+  "udp_port": 19103,
+  "app_port": 1103,
+  "security": "medium"
+}

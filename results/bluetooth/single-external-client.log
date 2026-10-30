@@ -1,0 +1,8 @@
+[READY] mode=connect local=00:AA:01:01:00:01 peer=00:AA:01:00:00:00 psm=0x1001 udp=49001 app=29001 security=low
+[BT] connected transport=L2CAP imtu=672 omtu=672
+[DROP] 本地帧长度非法
+[DROP] 本地帧长度非法
+[DROP] 本地帧长度非法
+[DROP] 本地帧长度非法
+[DROP] 非配置本地应用端口
+[STATS] udp_rx=73 bt_tx=69 bt_rx=3 udp_tx=3 invalid=4 denied=1 offline=0 errors=0 connections=1 bt_tx_bytes=1078 bt_rx_bytes=75
