@@ -5,7 +5,8 @@
  *      见 scripts/ovs_setup.sh；
  *  (2) 外部端口表 + 外部转发：ept_lookup()，目的网络直连本节点外部端口则直接送出；
  *  (3) 内部转发表 + 内部转发：ift_lookup() + route_frame()，在节点域内逐跳转发；
- *  (4) 负载均衡：转发表项含多条等价端口，按流 (src^dst) 选路，同一数据流固定同一路径；
+ *  (4) 负载均衡：转发表项含多条等价端口，按流 FNV-1a 哈希选路，同一数据流固定同一路径；
+ *      主用端口发送失败时自动改走其它等价端口（本地保护 / 快速重路由）；
  *  (5) 源地址校验：外部端口收帧时校验 src>>8 == 该端口所连网络号；
  *  (6) 数据包校验：帧尾 CRC-16-CCITT，坏帧丢弃并计数；
  *  (7) 外部信道类型：端口可标注 eth/wifi/bt，并可绑定到指定网卡/IP（有线、WiFi、蓝牙任选两种）；
@@ -72,7 +73,7 @@ static uint16_t myaddr;
 
 /* 统计计数（多线程并发热点，用原子加减，避免丢更新） */
 static unsigned long st_rx, st_tx, st_crc_err, st_src_err, st_noroute,
-                     st_ttl_drop, st_deliver, st_nolearn, st_senderr;
+                     st_ttl_drop, st_deliver, st_nolearn, st_senderr, st_failover;
 
 #define ST_INC(x) __atomic_add_fetch(&(x), 1UL, __ATOMIC_RELAXED)
 
@@ -99,18 +100,46 @@ static Port *ept_lookup(uint8_t net)
     return NULL;
 }
 
-/* 内部转发表查找 + 负载均衡选择
- * 同一数据流(源,目的)固定走同一条路径，避免乱序；不同流散到不同端口。 */
-static int ift_lookup(uint16_t key, uint16_t src, uint16_t dst)
+/* 流哈希：FNV-1a over (src, dst) 四个字节
+ *
+ * 为什么不用 (src^dst)：
+ *   1) 对称性差：XOR 对 (a,b) 与 (b,a) 结果相同，双向业务会被绑到同一条路径；
+ *   2) 分布差：地址相邻时低位高度相关，n=2 时几乎就是"看最低位"，容易一半流挤一条路；
+ *   3) 换一台主机/换一个地址段，映射关系整体平移，不利于"同流不乱序"的稳定性。
+ * FNV-1a 只需要 4 次乘法，无查表、无状态，同一 (src,dst) 恒定得到同一结果（流不乱序），
+ * 不同流均匀散开；n 个等价端口取 h % n。
+ */
+static unsigned flow_hash(uint16_t src, uint16_t dst)
+{
+    unsigned h = 2166136261u;
+    uint8_t b[4];
+    int i;
+
+    b[0] = (uint8_t)(src >> 8);
+    b[1] = (uint8_t)(src & 0xFF);
+    b[2] = (uint8_t)(dst >> 8);
+    b[3] = (uint8_t)(dst & 0xFF);
+    for (i = 0; i < 4; i++) {
+        h ^= b[i];
+        h *= 16777619u;
+    }
+    return h;
+}
+
+/* 内部转发表查找：返回表项（支持等价端口），找不到返回 NULL */
+static IftEntry *ift_find(uint16_t key)
 {
     int i;
-    for (i = 0; i < nift; i++) {
-        if (ift[i].key == key) {
-            int idx = (int)(((unsigned)(src ^ dst)) % (unsigned)ift[i].n);
-            return ift[i].port[idx];
-        }
-    }
-    return -1;
+    for (i = 0; i < nift; i++)
+        if (ift[i].key == key)
+            return &ift[i];
+    return NULL;
+}
+
+/* 主用端口下标（等价端口组内的首选） */
+static int flow_index(const IftEntry *e, uint16_t src, uint16_t dst)
+{
+    return (int)(flow_hash(src, dst) % (unsigned)e->n);
 }
 
 /* 外部端口源地址学习：把“站点地址 -> 该站点发送时的 UDP 源地址”记下来 */
@@ -159,8 +188,9 @@ static void log_line(const char *fmt, ...)
 
 /* 从端口 p 把帧发给对端
  * 外部端口优先用“学到的站点地址”回送（同一信道可挂多台主机），
- * 没学到才退回配置里的 peer。 */
-static void port_send(Port *p, Frame *f)
+ * 没学到才退回配置里的 peer。
+ * 返回 0 成功，-1 失败（调用方可以改走等价端口）。 */
+static int port_send(Port *p, Frame *f)
 {
     const struct sockaddr_in *dst = NULL;
 
@@ -175,13 +205,13 @@ static void port_send(Port *p, Frame *f)
     }
     if (!dst) {
         log_line("[DROP] 端口%d无对端且未学到目的站点 dst=0x%04X", p->id, f->dst);
-        return;
+        return -1;
     }
 
     if (f->ttl <= 1) {
         ST_INC(st_ttl_drop);
         log_line("[DROP] TTL超期 dst=0x%04X (端口%d)", f->dst, p->id);
-        return;
+        return -1;
     }
     /* ttl 属于 CRC 覆盖范围，改了就必须重新封 CRC，否则下一跳校验必然失败 */
     f->ttl--;
@@ -191,9 +221,42 @@ static void port_send(Port *p, Frame *f)
                (struct sockaddr *)dst, sizeof(*dst)) < 0) {
         ST_INC(st_senderr);
         log_line("[DROP] 端口%d发送失败: %s", p->id, strerror(errno));
-        return;
+        return -1;
     }
     ST_INC(st_tx);
+    return 0;
+}
+
+/* 按"等价端口组"转发：
+ *   首选 = flow_hash(src,dst) % n；发送失败时依次改走其它等价端口。
+ * 这就是转发面的"本地保护 / 快速重路由"——等价路径里断一条，业务不被丢，
+ * 不需要控制面重新收敛（静态表也能扛单链路故障）。 */
+static int forward_equiv(IftEntry *e, Frame *f, const char *from, int cross)
+{
+    Frame orig = *f;
+    int start = flow_index(e, f->src, f->dst);
+    int k;
+
+    for (k = 0; k < e->n; k++) {
+        int pid = e->port[(start + k) % e->n];
+        Port *p = find_port(pid);
+
+        if (p == NULL)
+            continue;
+        if (k == 0) {
+            log_line("[FWD]  %s: %s -> 出端口%d dst=0x%04X%s",
+                     cross ? "内部转发(跨域途中)" : "内部转发", from, pid, f->dst,
+                     e->n > 1 ? " [等价路径]" : "");
+        } else {
+            ST_INC(st_failover);
+            log_line("[REROUTE] 端口%d 不可用，改走等价端口%d dst=0x%04X",
+                     e->port[(start + k - 1) % e->n], pid, f->dst);
+        }
+        if (port_send(p, f) == 0)
+            return 0;
+        *f = orig;      /* 换端口重试前恢复 ttl 与 CRC，避免多减一次 */
+    }
+    return -1;
 }
 
 /* 帧的路由决策。in_port = -1 表示本节点自己产生的帧 */
@@ -201,7 +264,7 @@ static void route_frame(Frame *f, int in_port)
 {
     uint8_t net  = (uint8_t)(f->dst >> 8);
     uint8_t node = (uint8_t)(f->dst & 0xFF);
-    int out;
+    IftEntry *e;
     Port *p;
     char from[32];
 
@@ -217,17 +280,11 @@ static void route_frame(Frame *f, int in_port)
             log_line("[RECV] 交付本节点: src=0x%04X 内容=\"%s\"", f->src, f->payload);
             return;
         }
-        out = ift_lookup(f->dst, f->src, f->dst);   /* 内部转发表按完整目的地址查 */
-        if (out < 0)
+        e = ift_find(f->dst);               /* 内部转发表按完整目的地址查 */
+        if (e == NULL)
             goto no_route;
-        p = find_port(out);
-        if (p == NULL)                  /* 表项引用了不存在的端口 */
+        if (forward_equiv(e, f, from, 0) < 0)
             goto no_route;
-        if (in_port < 0)
-            log_line("[FWD]  内部转发: 本机 -> 出端口%d dst=0x%04X", out, f->dst);
-        else
-            log_line("[FWD]  内部转发: 入端口%d -> 出端口%d dst=0x%04X", in_port, out, f->dst);
-        port_send(p, f);
         return;
     }
 
@@ -241,15 +298,11 @@ static void route_frame(Frame *f, int in_port)
     }
 
     /* 3) 外部网络不直接相连：查内部转发表，往拥有该网络的节点转发 */
-    out = ift_lookup((uint16_t)(net << 8), f->src, f->dst);
-    if (out < 0)
+    e = ift_find((uint16_t)(net << 8));
+    if (e == NULL)
         goto no_route;
-    p = find_port(out);
-    if (p == NULL)
+    if (forward_equiv(e, f, from, 1) < 0)
         goto no_route;
-    log_line("[FWD]  内部转发(跨域途中): %s -> 出端口%d dst=0x%04X",
-             from, out, f->dst);
-    port_send(p, f);
     return;
 
 no_route:
@@ -456,6 +509,52 @@ static int load_config(const char *path)
     return 0;
 }
 
+/* 配置自检：把"配错了也能跑、但行为诡异"的情况在启动时就拦下来 */
+static int validate_config(void)
+{
+    int i, j, k, bad = 0;
+
+    if (nports == 0) {
+        fprintf(stderr, "配置错误: 没有任何端口\n");
+        return -1;
+    }
+    for (i = 0; i < nports; i++) {
+        if (ports[i].is_ext && ports[i].ext_net == NET_LOCAL) {
+            fprintf(stderr, "配置错误: 端口%d 的外部网络号不能是 0x%02X（域内保留）\n",
+                    ports[i].id, NET_LOCAL);
+            bad = 1;
+        }
+        for (j = i + 1; j < nports; j++)
+            if (ports[i].id == ports[j].id) {
+                fprintf(stderr, "配置错误: 端口号 %d 重复\n", ports[i].id);
+                bad = 1;
+            }
+        if (!ports[i].is_ext)
+            continue;
+        for (k = i + 1; k < nports; k++)
+            if (ports[k].is_ext && ports[k].ext_net == ports[i].ext_net) {
+                fprintf(stderr, "配置错误: 网络 0x%02X 配了多个外部端口（%d 和 %d）\n",
+                        ports[i].ext_net, ports[i].id, ports[k].id);
+                bad = 1;
+            }
+    }
+    for (i = 0; i < nift; i++) {
+        for (j = i + 1; j < nift; j++)
+            if (ift[i].key == ift[j].key) {
+                fprintf(stderr, "配置错误: 转发表项 0x%04X 重复（等价端口应写在一行）\n",
+                        ift[i].key);
+                bad = 1;
+            }
+        for (j = 0; j < ift[i].n; j++)
+            if (find_port(ift[i].port[j]) == NULL) {
+                fprintf(stderr, "配置错误: 转发表 0x%04X 引用了不存在的端口 %d\n",
+                        ift[i].key, ift[i].port[j]);
+                bad = 1;
+            }
+    }
+    return bad ? -1 : 0;
+}
+
 /* ---------------- 命令行界面 ---------------- */
 
 static void print_tables(void)
@@ -497,7 +596,7 @@ static void print_tables(void)
 
 static void print_stats(void)
 {
-    printf("接收=%lu 发送=%lu 交付=%lu CRC错误=%lu 源地址错误=%lu 无路由=%lu TTL超期=%lu 未学到回退=%lu 发送失败=%lu\n",
+    printf("接收=%lu 发送=%lu 交付=%lu CRC错误=%lu 源地址错误=%lu 无路由=%lu TTL超期=%lu 未学到回退=%lu 发送失败=%lu 重路由=%lu\n",
            __atomic_load_n(&st_rx, __ATOMIC_RELAXED),
            __atomic_load_n(&st_tx, __ATOMIC_RELAXED),
            __atomic_load_n(&st_deliver, __ATOMIC_RELAXED),
@@ -506,13 +605,14 @@ static void print_stats(void)
            __atomic_load_n(&st_noroute, __ATOMIC_RELAXED),
            __atomic_load_n(&st_ttl_drop, __ATOMIC_RELAXED),
            __atomic_load_n(&st_nolearn, __ATOMIC_RELAXED),
-           __atomic_load_n(&st_senderr, __ATOMIC_RELAXED));
+           __atomic_load_n(&st_senderr, __ATOMIC_RELAXED),
+           __atomic_load_n(&st_failover, __ATOMIC_RELAXED));
 }
 
 static void reset_stats(void)
 {
     st_rx = st_tx = st_crc_err = st_src_err = st_noroute = 0;
-    st_ttl_drop = st_deliver = st_nolearn = st_senderr = 0;
+    st_ttl_drop = st_deliver = st_nolearn = st_senderr = st_failover = 0;
     printf("统计计数已清零\n");
 }
 
@@ -537,6 +637,8 @@ int main(int argc, char *argv[])
         return 1;
     }
     if (load_config(argv[1]) < 0)
+        return 1;
+    if (validate_config() < 0)
         return 1;
     myaddr = (uint16_t)((NET_LOCAL << 8) | myid);
 

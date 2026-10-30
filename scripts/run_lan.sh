@@ -55,6 +55,6 @@ sleep 1
 echo "== 本机角色 $ROLE 已启动 =="
 tmux ls
 echo
-echo "看某节点: tmux attach -t n$NODES   (Ctrl-b d 脱离)"
+echo "看某节点: tmux attach -t n${NODES%% *}   (Ctrl-b d 脱离)"
 echo "发命令:   tmux send-keys -t n1 'table' Enter"
 echo "停止:     bash scripts/stop_all.sh"

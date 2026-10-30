@@ -61,24 +61,24 @@ A)
     sleep 0.8
 
     title "1. 跨机送达（题目 2(2) 外部转发 + 2(3) 内部转发）"
-    say "0x0A01 发一句话给 0x0C01："
+    say "0x0A01 发一句话给 0x0C01（哈希选中端口2 → 直接跨机到 B 机节点3）"
     S h0x0A01 "send 0x0C01 order-001"
     sleep 1.5
-    say "A 机 节点1（进外部端口，转内部）："; logs n1 1
-    say "A 机 节点2（转出网卡，发往 B 机）："; logs n2 1
+    say "A 机 节点1（外部端口进 → 内部跨域出）："; logs n1 1
+    say "（B 机节点3 应出现：外部转发 入端口2 -> 外部端口4）"
 
-    title "2. 域内逐跳（1 → 2 → 4 → 3）"
-    say "节点1 直接发一帧给节点3（地址 0x0103）："
-    S n1 "send 0x0103 ping-node3"
+    title "2. 域内逐跳（1 → 2 → 4）"
+    say "节点1 直接发一帧给节点4（地址 0x0104，唯一路径经节点2）："
+    S n1 "send 0x0104 ping-node4"
     sleep 1.6
     say "A 机 节点1："; logs n1 1
     say "A 机 节点2："; logs n2 1
 
     title "3. 负载均衡（同目的、不同源 → 不同下一跳）"
-    say "源 0x0101（节点1 自己）走端口1；源 0x0A02（外部主机）走端口2"
+    say "源 0x0101（节点1 自己）哈希落 0 → 端口1；源 0x0A01（外部主机）落 1 → 端口2"
     S n1 "send 0x0C01 lb-src-0101"
     sleep 1.0
-    S h0x0A02 "send 0x0C01 lb-src-0A02"
+    S h0x0A01 "send 0x0C01 lb-src-0A01"
     sleep 1.5
     say "A 机 节点1 的两条日志："; logs n1 2
 
