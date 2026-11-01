@@ -19,6 +19,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'scripts'))
 from bluetooth import probe
+from bluetooth_regressions import queued_offline_frames
 
 
 class Process:
@@ -174,6 +175,9 @@ def main():
         # btvirt 多对端 handle 映射限制影响后续两个 PSM 的测试。
         command('hciconfig', created[2].name, 'down')
         monitor.wait('Disconnect Complete')
+        for mode in ('listen', 'connect'):
+            check('queued_offline_frames_'+mode,
+                  lambda m=mode: queued_offline_frames(start, ROOT, frame, a, b, m))
         int_server = gateway('internal-server','listen',b,a,'0x1003',42002,22002)
         int_server.wait('[READY]')
         ext_client = gateway('external-client','connect',b,a,'0x1001',49001,29001)

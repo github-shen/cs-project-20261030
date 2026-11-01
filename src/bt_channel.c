@@ -89,19 +89,6 @@ static int bluetooth_socket(const bdaddr_t *local, int psm, int security)
     return fd;
 }
 
-static int ready(int fd)
-{
-    struct l2cap_options opts;
-    socklen_t len = sizeof(opts);
-    if (getsockopt(fd, SOL_L2CAP, L2CAP_OPTIONS, &opts, &len) < 0) return -1;
-    if (opts.omtu < sizeof(Frame) || opts.imtu < sizeof(Frame)) {
-        errno = EMSGSIZE; return -1;
-    }
-    connections++;
-    printf("[BT] connected transport=L2CAP imtu=%u omtu=%u\n", opts.imtu, opts.omtu);
-    return 0;
-}
-
 /* 先验证数据报边界，再允许下游解析 Frame。CRC 留给现有接收程序校验，
  * 因此 sendbad 的坏 CRC 会原样到达下一跳，适配器不会重封 CRC。 */
 static int valid_frame(const unsigned char *buf, ssize_t n)
@@ -110,6 +97,53 @@ static int valid_frame(const unsigned char *buf, ssize_t n)
     if (n < (ssize_t)FRAME_HDR_SIZE || n > (ssize_t)sizeof(Frame)) return 0;
     memcpy(&f, buf, FRAME_HDR_SIZE);
     return f.len < MAX_PAYLOAD && n == (ssize_t)(FRAME_HDR_SIZE + f.len);
+}
+
+/* 返回正数表示合法帧，0表示已拒绝的数据报，-1保留recvfrom的errno。 */
+static ssize_t receive_local_frame(int udp, const struct sockaddr_in *app,
+                                   unsigned char buf[sizeof(Frame) + 1])
+{
+    struct sockaddr_in from = {0};
+    socklen_t len = sizeof(from);
+    ssize_t n = recvfrom(udp, buf, sizeof(Frame) + 1, MSG_TRUNC,
+                         (struct sockaddr *)&from, &len);
+    if (n < 0) return -1;
+    if (from.sin_addr.s_addr != app->sin_addr.s_addr || from.sin_port != app->sin_port) {
+        denied++; printf("[DROP] 非配置本地应用端口\n"); return 0;
+    }
+    udp_rx++;
+    if (!valid_frame(buf, n)) {
+        invalid++; printf("[DROP] 本地帧长度非法\n"); return 0;
+    }
+    return n;
+}
+
+static int ready(int fd, int udp, const struct sockaddr_in *app)
+{
+    struct l2cap_options opts;
+    socklen_t len = sizeof(opts);
+    unsigned char pending[sizeof(Frame) + 1];
+    if (getsockopt(fd, SOL_L2CAP, L2CAP_OPTIONS, &opts, &len) < 0) return -1;
+    if (opts.omtu < sizeof(Frame) || opts.imtu < sizeof(Frame)) {
+        errno = EMSGSIZE; return -1;
+    }
+    /* poll可同时报告连接完成和UDP可读。上线前清空内核UDP队列，
+     * 避免把离线期间积压的帧按新连接状态发送；三种建连路径共用此边界。 */
+    while (!stopping) {
+        ssize_t n = receive_local_frame(udp, app, pending);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+            return -1;
+        }
+        if (n > 0) {
+            offline++; printf("[DROP] 蓝牙信道未连接，无缓存\n");
+        }
+    }
+    if (stopping) { errno = EINTR; return -1; }
+    connections++;
+    printf("[BT] connected transport=L2CAP imtu=%u omtu=%u\n", opts.imtu, opts.omtu);
+    return 0;
 }
 
 static void usage(const char *name)
@@ -185,7 +219,7 @@ int main(int argc, char **argv)
             conn = bluetooth_socket(&local, 0, security);
             if (conn < 0) { errors++; retry_at = now_ms() + 1000; }
             else if (connect(conn, (struct sockaddr *)&remote, sizeof(remote)) == 0) {
-                if (ready(conn) < 0) goto disconnected;
+                if (ready(conn, udp, &app) < 0) goto disconnected;
             } else if (errno == EINPROGRESS) {
                 connecting = 1; deadline = now_ms() + 5000;
             } else goto disconnected;
@@ -203,7 +237,7 @@ int main(int argc, char **argv)
             if (incoming >= 0) {
                 if (bacmp(&from.l2_bdaddr, &peer) || conn >= 0) {
                     denied++; close(incoming); printf("[DROP] 非配置蓝牙对端或信道已占用\n");
-                } else if (nonblock(incoming) < 0 || ready(incoming) < 0) {
+                } else if (nonblock(incoming) < 0 || ready(incoming, udp, &app) < 0) {
                     errors++; close(incoming);
                 } else conn = incoming;
             }
@@ -213,7 +247,7 @@ int main(int argc, char **argv)
             socklen_t len = sizeof(err);
             if (getsockopt(conn, SOL_SOCKET, SO_ERROR, &err, &len) < 0) goto disconnected;
             if (err) { errno = err; goto disconnected; }
-            if (ready(conn) < 0) goto disconnected;
+            if (ready(conn, udp, &app) < 0) goto disconnected;
             connecting = 0;
         } else if (fds[2].revents & (POLLERR | POLLHUP | POLLNVAL)) {
             errno = ECONNRESET; goto disconnected;
@@ -230,15 +264,9 @@ int main(int argc, char **argv)
             }
         }
         if (fds[0].revents & POLLIN) {
-            struct sockaddr_in from;
-            socklen_t len = sizeof(from);
-            ssize_t n = recvfrom(udp, buf, sizeof(buf), MSG_TRUNC, (struct sockaddr *)&from, &len);
+            ssize_t n = receive_local_frame(udp, &app, buf);
             if (n < 0) { if (errno != EAGAIN && errno != EINTR) errors++; continue; }
-            if (from.sin_addr.s_addr != app.sin_addr.s_addr || from.sin_port != app.sin_port) {
-                denied++; printf("[DROP] 非配置本地应用端口\n"); continue;
-            }
-            udp_rx++;
-            if (!valid_frame(buf, n)) { invalid++; printf("[DROP] 本地帧长度非法\n"); continue; }
+            if (n == 0) continue;
             if (conn < 0 || connecting) { offline++; printf("[DROP] 蓝牙信道未连接，无缓存\n"); continue; }
             if (send(conn, buf, (size_t)n, MSG_NOSIGNAL) == n) {
                 bt_tx++; bt_tx_bytes += (unsigned long)n;

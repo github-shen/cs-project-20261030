@@ -62,6 +62,7 @@ sudo python3 scripts/bluetooth.py run config-bt/client.local.json
 | 连接超时 | 单次5秒，间隔1秒重试 |
 | 断线 | 关闭旧连接，客户端自动重连；服务端继续等待指定对端 |
 | 离线时收到业务帧 | 明确丢弃并增加 `offline`，不缓存、不在恢复后重放 |
+| 连接完成时UDP仍有积压 | 在启用新连接转发前清空离线队列，来源与长度校验照常计数 |
 | 非配置蓝牙地址或额外连接 | 拒绝并增加 `denied` |
 | 非配置本地UDP源端口 | 拒绝并增加 `denied` |
 | 长度异常/截断/尾随数据 | 拒绝并增加 `invalid` |
@@ -81,6 +82,8 @@ sudo python3 tests/test_bluetooth.py
 ```
 
 测试拒绝已有蓝牙控制器的环境，并取得项目级文件锁。为防止桌面BlueZ自动配对策略干扰，会临时runtime-mask并停止Bluetooth服务，关闭本次虚拟控制器的SSP，在finally中恢复原服务状态。只适用于专用测试VM；强制SIGKILL无法执行finally，此时可在确认实验已停止后手动执行 `sudo systemctl unmask --runtime bluetooth.service`，按原状态恢复服务。
+
+连接边界回归分别覆盖 `listen` 和 `connect`：暂停测试适配器，将4条合法帧、1条长度异常帧、1条非法来源帧留在UDP队列中，再完成L2CAP连接。测试要求离线帧不重放，`offline/invalid/denied` 分别为 `4/1/1`，上线后的新帧双向正常传输。客户端场景使用 `BT_DEFER_SETUP` 控制握手完成时刻。
 
 双VM通过 `tests/test_two_vm.py` 自动协调：A运行S1/S2/Down3，B运行S3/S4/Upper/Down5/Down1。A的BlueZ模拟器提供两个虚拟控制器，其中一个通过测试专用H4/IP转接交给B的 `/dev/vhci`。每台机器使用自己的Linux蓝牙协议栈和L2CAP socket。
 
