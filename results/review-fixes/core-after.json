@@ -1,0 +1,52 @@
+{
+  "started_at": "2026-11-01T12:57:31.874694+00:00",
+  "status": "PASS",
+  "checks": {
+    "send_remote_node": {
+      "status": "PASS",
+      "evidence": "[RECV] 交付本节点: src=0x0101 内容=\"review_remote_node\""
+    },
+    "sendbad_remote_node": {
+      "status": "PASS",
+      "evidence": "[DROP] CRC校验失败 (端口1)"
+    },
+    "send_routed_external": {
+      "status": "PASS",
+      "evidence": "[RECV] 来自0x0101: \"review_routed_external\""
+    },
+    "sendbad_routed_external": {
+      "status": "PASS",
+      "evidence": "[DROP] CRC校验失败 (端口1)"
+    },
+    "send_direct_external": {
+      "status": "PASS",
+      "evidence": "[RECV] 来自0x0101: \"review_direct_external\""
+    },
+    "sendbad_direct_external": {
+      "status": "PASS",
+      "evidence": "[DROP] CRC校验失败, 帧已丢弃"
+    },
+    "send_self": {
+      "status": "PASS",
+      "evidence": "[RECV] 交付本节点: src=0x0101 内容=\"review_self\""
+    },
+    "sendbad_self": {
+      "status": "PASS",
+      "evidence": "[DROP] CRC校验失败 (本地交付)"
+    },
+    "concurrent_learning_and_return_traffic": {
+      "status": "PASS",
+      "evidence": {
+        "terminals": 8,
+        "replies": 64,
+        "wrong_destination": 0,
+        "invalid_crc": 0,
+        "ttl": 6
+      }
+    }
+  },
+  "cleanup": {
+    "processes_stopped": true,
+    "threads_stopped": true
+  }
+}

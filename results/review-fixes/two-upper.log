@@ -1,0 +1,8 @@
+主机0x0A01已就绪, 本地 0.0.0.0:29001, 连接到节点 127.0.0.1:49001
+命令: send <目的地址hex> <内容> | sendbad <目的地址hex> <内容> | quit
+[RECV] 来自0x0B01: "cross_down3_upper"
+[RECV] 来自0x0C01: "cross_down5_upper"
+[RECV] 来自0x0D01: "cross_down1_upper"
+[RECV] 来自0x0101: "cross_node_normal"
+[DROP] CRC校验失败, 帧已丢弃
+[RECV] 来自0x0B01: "cross_reverse_reconnected"

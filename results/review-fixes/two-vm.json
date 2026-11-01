@@ -1,0 +1,95 @@
+{
+  "started_at": "2026-11-01T13:00:59.661521+00:00",
+  "status": "PASS",
+  "topology": {
+    "a": [
+      "S1",
+      "S2",
+      "Down3"
+    ],
+    "b": [
+      "S3",
+      "S4",
+      "Upper",
+      "Down5",
+      "Down1"
+    ]
+  },
+  "radio": "EMULATED - HCI over private IP; physical radio NOT VERIFIED",
+  "checks": {
+    "two_kernel_l2cap_connections": {
+      "status": "PASS",
+      "evidence": true
+    },
+    "four_domain_12_directions": {
+      "status": "PASS",
+      "evidence": [
+        "[RECV] 来自0x0A01: \"cross_upper_down3\"",
+        "[RECV] 来自0x0A01: \"cross_upper_down5\"",
+        "[RECV] 来自0x0A01: \"cross_upper_down1\"",
+        "[RECV] 来自0x0B01: \"cross_down3_upper\"",
+        "[RECV] 来自0x0B01: \"cross_down3_down5\"",
+        "[RECV] 来自0x0B01: \"cross_down3_down1\"",
+        "[RECV] 来自0x0C01: \"cross_down5_upper\"",
+        "[RECV] 来自0x0C01: \"cross_down5_down3\"",
+        "[RECV] 来自0x0C01: \"cross_down5_down1\"",
+        "[RECV] 来自0x0D01: \"cross_down1_upper\"",
+        "[RECV] 来自0x0D01: \"cross_down1_down3\"",
+        "[RECV] 来自0x0D01: \"cross_down1_down5\""
+      ]
+    },
+    "crc_rejected": {
+      "status": "PASS",
+      "evidence": "[DROP] CRC校验失败 (端口3)"
+    },
+    "node_sendbad_across_vms": {
+      "status": "PASS",
+      "evidence": {
+        "normal": "[RECV] 来自0x0101: \"cross_node_normal\"",
+        "corrupted": "[DROP] CRC校验失败, 帧已丢弃"
+      }
+    },
+    "disconnect_and_bidirectional_recovery": {
+      "status": "PASS",
+      "evidence": {
+        "offline_drop": "[DROP] 蓝牙信道未连接，无缓存",
+        "stale_replay": false
+      }
+    },
+    "source_binding": {
+      "status": "PASS",
+      "evidence": "[DROP] 源地址校验失败: 端口3连网络0x0A, 但帧源地址0x0B02"
+    },
+    "64_address_flows": {
+      "status": "PASS",
+      "evidence": {
+        "received": 64,
+        "node1_outputs": {
+          "1": 32,
+          "2": 32
+        },
+        "key": "logical src/dst; not five-tuple"
+      }
+    }
+  },
+  "channel_counters": {
+    "a-ext": "[STATS] udp_rx=7 bt_tx=6 bt_rx=70 udp_tx=70 invalid=0 denied=0 offline=1 errors=0 connections=2 bt_tx_bytes=159 bt_rx_bytes=1476",
+    "a-int": "[STATS] udp_rx=33 bt_tx=33 bt_rx=1 udp_tx=1 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=692 bt_rx_bytes=25",
+    "b-ext-reconnected": "[STATS] udp_rx=66 bt_tx=66 bt_rx=1 udp_tx=1 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=1380 bt_rx_bytes=33",
+    "b-int": "[STATS] udp_rx=1 bt_tx=1 bt_rx=33 udp_tx=33 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=25 bt_rx_bytes=692"
+  },
+  "cleanup": {
+    "b": {
+      "processes_stopped": true,
+      "hci_removed": true,
+      "network_unchanged": true,
+      "bluetooth_service_restored": true
+    },
+    "a": {
+      "processes_stopped": true,
+      "hci_removed": true,
+      "network_unchanged": true,
+      "bluetooth_service_restored": true
+    }
+  }
+}

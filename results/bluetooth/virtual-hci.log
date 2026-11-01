@@ -1,0 +1,352 @@
+< ACL Data TX: Handle 42 flags 0x00 dlen 10                        #12 0.484550
+      L2CAP: Information Request (0x0a) ident 1 len 2
+> ACL Data RX: Handle 42 flags 0x02 dlen 10                        #16 0.484595
+      L2CAP: Information Request (0x0a) ident 1 len 2
+< ACL Data TX: Handle 42 flags 0x00 dlen 16                        #17 0.484609
+      L2CAP: Information Response (0x0b) ident 1 len 8
+> ACL Data RX: Handle 42 flags 0x02 dlen 16                        #19 0.484644
+      L2CAP: Information Response (0x0b) ident 1 len 8
+< ACL Data TX: Handle 42 flags 0x00 dlen 10                        #20 0.484657
+      L2CAP: Information Request (0x0a) ident 2 len 2
+> ACL Data RX: Handle 42 flags 0x02 dlen 10                        #22 0.484703
+      L2CAP: Information Request (0x0a) ident 2 len 2
+< ACL Data TX: Handle 42 flags 0x00 dlen 20                        #23 0.484711
+      L2CAP: Information Response (0x0b) ident 2 len 12
+> ACL Data RX: Handle 42 flags 0x02 dlen 20                        #25 0.484742
+      L2CAP: Information Response (0x0b) ident 2 len 12
+> ACL Data RX: Handle 42 flags 0x02 dlen 12                        #26 0.484787
+      L2CAP: Connection Request (0x02) ident 3 len 4
+        PSM: 4097 (0x1001)
+< ACL Data TX: Handle 42 flags 0x00 dlen 16                        #27 0.484834
+      L2CAP: Connection Response (0x03) ident 3 len 8
+< ACL Data TX: Handle 42 flags 0x00 dlen 23                        #29 0.484876
+      L2CAP: Configure Request (0x04) ident 3 len 15
+> ACL Data RX: Handle 42 flags 0x02 dlen 23                        #31 0.484905
+      L2CAP: Configure Request (0x04) ident 4 len 15
+< ACL Data TX: Handle 42 flags 0x00 dlen 18                        #32 0.484918
+      L2CAP: Configure Response (0x05) ident 4 len 10
+> ACL Data RX: Handle 42 flags 0x02 dlen 18                        #34 0.484950
+      L2CAP: Configure Response (0x05) ident 3 len 10
+< ACL Data TX: Handle 42 flags 0x00 dlen 12                        #35 0.485019
+      L2CAP: Disconnection Request (0x06) ident 4 len 4
+> ACL Data RX: Handle 42 flags 0x02 dlen 12                        #37 0.485133
+      L2CAP: Disconnection Response (0x07) ident 4 len 4
+< ACL Data TX: Handle 42 flags 0x00 dlen 10                        #52 4.582444
+      L2CAP: Information Request (0x0a) ident 1 len 2
+> ACL Data RX: Handle 42 flags 0x02 dlen 10                        #55 4.582643
+      L2CAP: Information Request (0x0a) ident 1 len 2
+< ACL Data TX: Handle 42 flags 0x00 dlen 16                        #57 4.582717
+      L2CAP: Information Response (0x0b) ident 1 len 8
+> ACL Data RX: Handle 42 flags 0x02 dlen 16                        #58 4.583101
+      L2CAP: Information Response (0x0b) ident 1 len 8
+< ACL Data TX: Handle 42 flags 0x00 dlen 10                        #60 4.583385
+      L2CAP: Information Request (0x0a) ident 2 len 2
+> ACL Data RX: Handle 42 flags 0x02 dlen 10                        #61 4.583629
+      L2CAP: Information Request (0x0a) ident 2 len 2
+< ACL Data TX: Handle 42 flags 0x00 dlen 20                        #63 4.584263
+      L2CAP: Information Response (0x0b) ident 2 len 12
+> ACL Data RX: Handle 42 flags 0x02 dlen 20                        #64 4.584284
+      L2CAP: Information Response (0x0b) ident 2 len 12
+> ACL Data RX: Handle 42 flags 0x02 dlen 12                        #66 4.584605
+      L2CAP: Connection Request (0x02) ident 3 len 4
+        PSM: 4097 (0x1001)
+< ACL Data TX: Handle 42 flags 0x00 dlen 16                        #67 4.584634
+      L2CAP: Connection Response (0x03) ident 3 len 8
+< ACL Data TX: Handle 42 flags 0x00 dlen 23                        #69 4.584683
+      L2CAP: Configure Request (0x04) ident 3 len 15
+> ACL Data RX: Handle 42 flags 0x02 dlen 23                        #71 4.584723
+      L2CAP: Configure Request (0x04) ident 4 len 15
+< ACL Data TX: Handle 42 flags 0x00 dlen 18                        #72 4.584768
+      L2CAP: Configure Response (0x05) ident 4 len 10
+> ACL Data RX: Handle 42 flags 0x02 dlen 18                        #74 4.584809
+      L2CAP: Configure Response (0x05) ident 3 len 10
+< ACL Data TX: Handle 42 flags 0x00 dlen 12                        #75 4.612666
+      L2CAP: Connection Request (0x02) ident 4 len 4
+        PSM: 4099 (0x1003)
+> ACL Data RX: Handle 42 flags 0x02 dlen 16                        #77 4.612782
+      L2CAP: Connection Response (0x03) ident 4 len 8
+< ACL Data TX: Handle 42 flags 0x00 dlen 23                        #78 4.612827
+      L2CAP: Configure Request (0x04) ident 5 len 15
+> ACL Data RX: Handle 42 flags 0x02 dlen 23                        #79 4.612842
+      L2CAP: Configure Request (0x04) ident 5 len 15
+< ACL Data TX: Handle 42 flags 0x00 dlen 18                        #81 4.612850
+      L2CAP: Configure Response (0x05) ident 5 len 10
+> ACL Data RX: Handle 42 flags 0x02 dlen 18                        #83 4.612885
+      L2CAP: Configure Response (0x05) ident 5 len 10
+> ACL Data RX: Handle 42 flags 0x02 dlen 29                        #84 4.801549
+      Channel: 64 len 25 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 29                        #85 4.831662
+      Channel: 64 len 25 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 29     #86 4.831845
+      Channel: 65 len 25 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 29                        #88 4.861748
+      Channel: 64 len 25 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19247]: < ACL Data TX: Handle 42 flags 0x00 dlen 29     #89 4.892044
+      Channel: 64 len 25 [PSM 4097 mode Basic (0x00)] {chan 0}
+        Channel: 64 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 29                        #91 4.994271
+      Channel: 65 len 25 [PSM 4099 mode Basic (0x00)] {chan 1}
+bt-channel[19247]: < ACL Data TX: Handle 42 flags 0x00 dlen 29     #92 4.994488
+      Channel: 64 len 25 [PSM 4097 mode Basic (0x00)] {chan 0}
+        Channel: 64 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19247]: < ACL Data TX: Handle 42 flags 0x00 dlen 29     #94 5.084807
+      Channel: 64 len 25 [PSM 4097 mode Basic (0x00)] {chan 0}
+        Channel: 64 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 26                        #96 5.176015
+      Channel: 64 len 22 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 25                        #97 5.409249
+      Channel: 64 len 21 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                        #98 5.469635
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19     #99 5.469796
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #101 5.499762
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #102 5.530225
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #103 5.530372
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #105 5.560143
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #106 5.590300
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #107 5.590436
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #109 5.620574
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #110 5.650767
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #111 5.650980
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #113 5.680920
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #114 5.711166
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #115 5.712043
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #117 5.741338
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #118 5.771486
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #119 5.771637
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #121 5.801838
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #122 5.832401
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #123 5.832671
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #125 5.862301
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #126 5.892545
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #127 5.892734
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #129 5.922779
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #130 5.978629
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #131 5.979035
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #133 6.014878
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #134 6.044547
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #135 6.044854
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #137 6.074682
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #138 6.104941
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #139 6.105286
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #141 6.135165
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #142 6.165372
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #143 6.165558
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #145 6.195625
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #146 6.225873
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #147 6.226086
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #149 6.256231
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #150 6.286405
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #151 6.286604
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #153 6.316630
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #154 6.346894
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #155 6.347122
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #157 6.377145
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #158 6.407352
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #159 6.407539
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #161 6.437583
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #162 6.467777
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #163 6.467986
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #165 6.498016
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #166 6.528266
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #167 6.528486
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #169 6.558516
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #170 6.588680
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #171 6.588884
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #173 6.618940
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #174 6.649189
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #175 6.649430
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #177 6.679437
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #178 6.709674
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #179 6.709897
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #181 6.739910
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #182 6.770135
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #183 6.770812
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #185 6.800606
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #186 6.830665
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #187 6.830867
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #189 6.860928
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #190 6.891218
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #191 6.891423
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #193 6.921339
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #194 6.951552
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #195 6.951751
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #197 6.981833
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #198 7.012018
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #199 7.012274
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #201 7.042243
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #202 7.072443
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #203 7.072662
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #205 7.102626
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #206 7.132940
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #207 7.133276
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #209 7.163113
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #210 7.193370
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #211 7.193582
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #213 7.223574
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #214 7.253911
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #215 7.254120
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #217 7.284056
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #218 7.314307
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #219 7.314526
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #221 7.344707
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #222 7.375030
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 19    #223 7.375285
+      Channel: 65 len 15 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 19                       #225 7.405331
+      Channel: 64 len 15 [PSM 4097 mode Basic (0x00)] {chan 0}
+> ACL Data RX: Handle 42 flags 0x02 dlen 12                       #226 7.497935
+      L2CAP: Disconnection Request (0x06) ident 6 len 4
+< ACL Data TX: Handle 42 flags 0x00 dlen 12                       #227 7.497997
+      L2CAP: Disconnection Response (0x07) ident 6 len 4
+> ACL Data RX: Handle 42 flags 0x02 dlen 35                       #229 7.498629
+      Channel: 65 len 31 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 12                       #230 7.531054
+      L2CAP: Connection Request (0x02) ident 7 len 4
+        PSM: 4097 (0x1001)
+< ACL Data TX: Handle 42 flags 0x00 dlen 16                       #231 7.531121
+      L2CAP: Connection Response (0x03) ident 7 len 8
+< ACL Data TX: Handle 42 flags 0x00 dlen 23                       #233 7.531197
+      L2CAP: Configure Request (0x04) ident 6 len 15
+> ACL Data RX: Handle 42 flags 0x02 dlen 23                       #235 7.531245
+      L2CAP: Configure Request (0x04) ident 8 len 15
+< ACL Data TX: Handle 42 flags 0x00 dlen 18                       #236 7.531264
+      L2CAP: Configure Response (0x05) ident 8 len 10
+> ACL Data RX: Handle 42 flags 0x02 dlen 18                       #237 7.531283
+      L2CAP: Configure Response (0x05) ident 6 len 10
+> ACL Data RX: Handle 42 flags 0x02 dlen 27                       #239 7.560269
+      Channel: 64 len 23 [PSM 4097 mode Basic (0x00)] {chan 0}
+bt-channel[19258]: < ACL Data TX: Handle 42 flags 0x00 dlen 27    #240 7.560520
+      Channel: 65 len 23 [PSM 4099 mode Basic (0x00)] {chan 1}
+        Channel: 65 [PSM 4099 mode Basic (0x00)] {chan 1}
+> ACL Data RX: Handle 42 flags 0x02 dlen 35                       #242 7.590602
+      Channel: 65 len 31 [PSM 4099 mode Basic (0x00)] {chan 1}
+bt-channel[19247]: < ACL Data TX: Handle 42 flags 0x00 dlen 35    #243 7.590876
+      Channel: 64 len 31 [PSM 4097 mode Basic (0x00)] {chan 0}
+        Channel: 64 [PSM 4097 mode Basic (0x00)] {chan 0}

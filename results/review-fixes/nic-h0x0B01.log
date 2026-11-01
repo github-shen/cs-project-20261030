@@ -1,0 +1,5 @@
+主机0x0B01已就绪, 本地 198.51.100.2:9002, 连接到节点 198.51.100.1:3104
+命令: send <目的地址hex> <内容> | sendbad <目的地址hex> <内容> | quit
+[RECV] 来自0x0A01: "nic-wifi-2"
+[RECV] 来自0x0A01: "lt-wifi-2-baseline-4504"
+[RECV] 来自0x0A01: "lt-wifi-2-restored-4504"

@@ -1,0 +1,35 @@
+{
+  "started_at": "2026-11-01T13:00:03.719014+00:00",
+  "status": "FAIL",
+  "topology": {
+    "a": [
+      "S1",
+      "S2",
+      "Down3"
+    ],
+    "b": [
+      "S3",
+      "S4",
+      "Upper",
+      "Down5",
+      "Down1"
+    ]
+  },
+  "radio": "EMULATED - HCI over private IP; physical radio NOT VERIFIED",
+  "checks": {},
+  "error": "ext提前退出: 蓝牙监听失败: Address already in use\n[STATS] udp_rx=0 bt_tx=0 bt_rx=0 udp_tx=0 invalid=0 denied=0 offline=0 errors=0 connections=0 bt_tx_bytes=0 bt_rx_bytes=0",
+  "cleanup": {
+    "b": {
+      "processes_stopped": true,
+      "hci_removed": true,
+      "network_unchanged": true,
+      "bluetooth_service_restored": true
+    },
+    "a": {
+      "processes_stopped": true,
+      "hci_removed": true,
+      "network_unchanged": true,
+      "bluetooth_service_restored": true
+    }
+  }
+}
