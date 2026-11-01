@@ -1,0 +1,15 @@
+{
+  "started_at": "2026-11-01T12:57:16.599171+00:00",
+  "status": "FAIL",
+  "checks": {
+    "send_remote_node": {
+      "status": "PASS",
+      "evidence": "[RECV] 交付本节点: src=0x0101 内容=\"review_remote_node\""
+    }
+  },
+  "error": "node2未观察到: [DROP] CRC校验失败\n  send <目的地址hex> <内容>   发送数据帧, 如 send 0x0B01 hello\n  sendbad <目的地址hex> <内容> 发送CRC故意损坏的帧(演示数据包校验)\n  table                       显示外部端口表/内部转发表/学习表\n  stats                       显示统计计数\n  reset                       计数清零(截图前用)\n  quit                        退出\n[RECV] 交付本节点: src=0x0101 内容=\"review_remote_node\"\n[RECV] 交付本节点: src=0x0101 内容=\"review_bad_remote_node\"",
+  "cleanup": {
+    "processes_stopped": true,
+    "threads_stopped": true
+  }
+}

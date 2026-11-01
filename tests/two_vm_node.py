@@ -91,10 +91,11 @@ def main():
                             result.append(row)
                         path.write_text('\n'.join(result)+'\n')
                     if o.role=='a':
-                        gateway('ext','listen',address,peer,'0x1001',41003,21103)
+                        # 先确认本机监听PSM已占用，避免客户端自动分配本地PSM时抢占它。
+                        gateway('ext','listen',address,peer,'0x1001',41003,21103).wait('[READY]')
                         gateway('int','connect',address,peer,'0x1003',41102,21102)
                     else:
-                        gateway('int','listen',address,peer,'0x1003',42002,22002)
+                        gateway('int','listen',address,peer,'0x1003',42002,22002).wait('[READY]')
                         gateway('ext','connect',address,peer,'0x1001',49001,29001)
                     for n in owned_nodes:
                         proc=start('node%d'%n,[ROOT/'bin/switch',configs/('node%d.conf'%n)])

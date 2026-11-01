@@ -1,0 +1,87 @@
+
+═══ 0. 环境检查 ═══
+    h0x0A01: 1 windows (created Sun Nov  1 21:07:14 2026)
+    h0x0A02: 1 windows (created Sun Nov  1 21:07:14 2026)
+    h0x0B01: 1 windows (created Sun Nov  1 21:07:14 2026)
+    h0x0C01: 1 windows (created Sun Nov  1 21:07:14 2026)
+    h0x0D01: 1 windows (created Sun Nov  1 21:07:14 2026)
+    n1: 1 windows (created Sun Nov  1 21:07:14 2026)
+    n2: 1 windows (created Sun Nov  1 21:07:14 2026)
+    n3: 1 windows (created Sun Nov  1 21:07:14 2026)
+    n4: 1 windows (created Sun Nov  1 21:07:14 2026)
+    spoof: 1 windows (created Sun Nov  1 21:07:14 2026)
+  有线网段 192.0.2.2 可达 ✓
+  无线网段 198.51.100.2 可达 ✓
+
+═══ 1. 有线路径（题目 2(2)+2(3)：外部转发 + 内部转发） ═══
+  0x0A02 → 0x0C01：节点1 --回环--> 节点2 --有线 2—3--> 节点3 --外部端口4(有线)--> 主机
+  抓包对照: sudo tcpdump -i nrf-eth -n udp 'port 3003 or port 2104'
+  节点1：
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0C01 [等价路径]
+  节点2：
+    [FWD]  内部转发(跨域途中): 入端口1 -> 出端口3 dst=0x0C01
+  主机 0x0C01（在 A 机，经有线接入 B 机）：
+    [RECV] 来自0x0A02: "nic-eth-1"
+
+═══ 2. 无线路径（同一目的、换源 → 换介质，题目 ps(2) 负载均衡） ═══
+  0x0A01 → 0x0C01：节点1 --无线 1—3--> 节点3（去程走 nrf-wifi）
+  抓包对照: sudo tcpdump -i nrf-wifi -n udp 'port 1102'
+  节点1：
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口2 dst=0x0C01 [等价路径]
+  主机 0x0C01：
+    [RECV] 来自0x0A01: "nic-wifi-1"
+
+═══ 3. 无线外部信道（下行 0x0B，主机在 B 机、节点在 A 机） ═══
+  0x0A01 → 0x0B01：节点1 → 节点2 → 外部端口4(wifi) —— 跨机这一段走 nrf-wifi
+  抓包对照: sudo tcpdump -i nrf-wifi -n udp 'port 3104'
+  节点1：
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0B01
+  节点2：
+    [FWD]  外部转发: 入端口1 -> 外部端口4(网络0x0B/wifi) dst=0x0B01
+  （B 机窗口应出现 [RECV] 来自0x0A01: nic-wifi-2）
+
+═══ 4. 有线外部信道（下行 0x0D，主机在 A 机、节点在 B 机） ═══
+  0x0A01 → 0x0D01：节点1 → 节点2 --有线 2—4--> 节点4 → 外部端口3(eth)
+  抓包对照: sudo tcpdump -i nrf-eth -n udp 'port 3002 or port 4103'
+  节点1：
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0D01
+  节点2：
+    [FWD]  内部转发(跨域途中): 入端口1 -> 出端口2 dst=0x0D01
+  主机 0x0D01：
+    [RECV] 来自0x0A01: "nic-eth-2"
+
+═══ 5. 数据包校验 CRC（坏帧必须被丢） ═══
+  节点1：
+    [DROP] CRC校验失败 (端口3)
+
+═══ 6. 源地址校验（冒名寄件被拒） ═══
+  自称 0x0C05 的主机挂在上行端口（该端口只连 0x0A 网络）
+  节点1：
+    [DROP] 源地址校验失败: 端口3连网络0x0A, 但帧源地址0x0C05
+
+═══ 7. 无路由兜底 + 两张表 ═══
+  节点1：
+    [DROP] 无路由 dst=0x0E01 src=0x0101
+  节点1 stats：
+    接收=4 发送=2 交付=0 CRC错误=1 源地址错误=1 无路由=0 TTL超期=0 未学到回退=0 发送失败=0 重路由=0
+  节点1 table（注意 信道 列的 eth / wifi）：
+    ==== 外部端口表 (节点1) ====
+      网络号  端口  信道   本地绑定            学到主机
+      0x0A    3     eth    0.0.0.0(all)        2
+    ==== 内部转发表 ====
+      目的键      等价端口(负载均衡)
+      0x0102    1
+      0x0103    1 / 2
+      0x0104    1
+      0x0B00    1
+      0x0C00    1 / 2
+      0x0D00    1
+    ==== 端口3 学到的外部主机 ====
+      0x0A02 -> 127.0.0.1:9005
+      0x0A01 -> 127.0.0.1:9001
+
+═══ 演示结束 ═══
+  按日志和抓包核对接口分工：nrf-wifi 承载 1—3 与 0x0B；nrf-eth 承载 2—3、2—4 与 0x0C/0x0D
+  接口标签不证明物理介质；虚拟接口实验仍需单独注明真实Wi-Fi/有线未验证。
+  想做硬证据: sudo bash scripts/capture.sh  然后重跑本演示，看两个 pcap 各自的端口对
+  断链实验:   bash scripts/link_test.sh

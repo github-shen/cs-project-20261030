@@ -1,0 +1,4 @@
+[READY] mode=connect local=00:AA:01:00:00:00 peer=00:AA:01:01:00:01 psm=0x1003 udp=41102 app=21102 security=low
+[BT] connected transport=L2CAP imtu=672 omtu=672
+[STATS] udp_rx=34 bt_tx=34 bt_rx=3 udp_tx=3 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=528 bt_rx_bytes=87
+[STATS] udp_rx=34 bt_tx=34 bt_rx=3 udp_tx=3 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=528 bt_rx_bytes=87

@@ -1,0 +1,6 @@
+主机0x0D01已就绪, 本地 192.0.2.1:9004, 连接到节点 192.0.2.2:4103
+命令: send <目的地址hex> <内容> | sendbad <目的地址hex> <内容> | quit
+[RECV] 来自0x0A01: "nic-eth-2"
+[RECV] 来自0x0A01: "lt-eth-2-baseline-4504"
+[RECV] 来自0x0A01: "lt-eth-2-down-4504"
+[RECV] 来自0x0A01: "lt-eth-2-restored-4504"

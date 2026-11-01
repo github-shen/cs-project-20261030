@@ -1,0 +1,4 @@
+主机0x0A01已就绪, 本地 0.0.0.0:42325, 连接到节点 127.0.0.1:35155
+命令: send <目的地址hex> <内容> | sendbad <目的地址hex> <内容> | quit
+[RECV] 来自0x0101: "review_direct_external"
+[DROP] CRC校验失败, 帧已丢弃

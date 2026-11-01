@@ -208,6 +208,16 @@ def main():
             return evidence
         check('bad_crc_across_bluetooth',crc)
 
+        def node_crc():
+            offset=len(hosts['upper'].lines)
+            nodes[1].send('send 0x0A01 node_crc_normal')
+            normal=hosts['upper'].wait('node_crc_normal',offset)
+            nodes[1].send('sendbad 0x0A01 node_crc_rejected')
+            dropped=hosts['upper'].wait('CRC校验失败',offset)
+            assert not any('[RECV]' in s and 'node_crc_rejected' in s for s in hosts['upper'].lines)
+            return {'normal':normal,'corrupted':dropped}
+        check('node_sendbad_across_bluetooth',node_crc)
+
         hosts['upper'].stop()
         with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as inject:
             inject.bind(('127.0.0.1',29001))

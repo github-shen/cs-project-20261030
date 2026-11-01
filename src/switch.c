@@ -55,6 +55,7 @@ typedef struct {
     LearnEntry learn[MAX_LEARN]; /* 外部端口源地址学习表 */
     int      nlearn;
     int      learn_rr;           /* 学习表轮转替换指针 */
+    pthread_mutex_t learn_lock;  /* 同一端口的学习、回程查找和CLI快照共享 */
 } Port;
 
 /* ---------------- 内部转发表项 ---------------- */
@@ -100,14 +101,9 @@ static Port *ept_lookup(uint8_t net)
     return NULL;
 }
 
-/* 流哈希：FNV-1a over (src, dst) 四个字节
- *
- * 为什么不用 (src^dst)：
- *   1) 对称性差：XOR 对 (a,b) 与 (b,a) 结果相同，双向业务会被绑到同一条路径；
- *   2) 分布差：地址相邻时低位高度相关，n=2 时几乎就是"看最低位"，容易一半流挤一条路；
- *   3) 换一台主机/换一个地址段，映射关系整体平移，不利于"同流不乱序"的稳定性。
- * FNV-1a 只需要 4 次乘法，无查表、无状态，同一 (src,dst) 恒定得到同一结果（流不乱序），
- * 不同流均匀散开；n 个等价端口取 h % n。
+/* 流哈希：依次混合src高/低字节、dst高/低字节，使用FNV-1a。
+ * 无查表、无状态；相同地址对及端口配置得到相同首选索引h % n。
+ * 分布取决于地址集合，取模不保证绝对均匀；故障换路时仍可能乱序。
  */
 static unsigned flow_hash(uint16_t src, uint16_t dst)
 {
@@ -147,9 +143,11 @@ static void learn_add(Port *p, uint16_t addr, const struct sockaddr_in *from)
 {
     int i;
 
+    pthread_mutex_lock(&p->learn_lock);
     for (i = 0; i < p->nlearn; i++) {
         if (p->learn[i].addr == addr) {
             p->learn[i].sa = *from;
+            pthread_mutex_unlock(&p->learn_lock);
             return;
         }
     }
@@ -161,15 +159,33 @@ static void learn_add(Port *p, uint16_t addr, const struct sockaddr_in *from)
     }
     p->learn[i].addr = addr;
     p->learn[i].sa = *from;
+    pthread_mutex_unlock(&p->learn_lock);
 }
 
-static const struct sockaddr_in *learn_find(Port *p, uint16_t addr)
+/* 锁内复制到调用者存储；不能把共享表项指针带出锁交给sendto。 */
+static int learn_find(Port *p, uint16_t addr, struct sockaddr_in *out)
 {
-    int i;
-    for (i = 0; i < p->nlearn; i++)
-        if (p->learn[i].addr == addr)
-            return &p->learn[i].sa;
-    return NULL;
+    int i, found = 0;
+    pthread_mutex_lock(&p->learn_lock);
+    for (i = 0; i < p->nlearn; i++) {
+        if (p->learn[i].addr == addr) {
+            *out = p->learn[i].sa;
+            found = 1;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&p->learn_lock);
+    return found;
+}
+
+static int learn_snapshot(Port *p, LearnEntry out[MAX_LEARN])
+{
+    int count;
+    pthread_mutex_lock(&p->learn_lock);
+    count = p->nlearn;
+    memcpy(out, p->learn, (size_t)count * sizeof(*out));
+    pthread_mutex_unlock(&p->learn_lock);
+    return count;
 }
 
 static void log_line(const char *fmt, ...)
@@ -190,12 +206,14 @@ static void log_line(const char *fmt, ...)
  * 外部端口优先用“学到的站点地址”回送（同一信道可挂多台主机），
  * 没学到才退回配置里的 peer。
  * 返回 0 成功，-1 失败（调用方可以改走等价端口）。 */
-static int port_send(Port *p, Frame *f)
+static int port_send(Port *p, Frame *f, int corrupt_crc)
 {
     const struct sockaddr_in *dst = NULL;
+    struct sockaddr_in learned_dst;
 
     if (p->is_ext) {
-        dst = learn_find(p, f->dst);
+        if (learn_find(p, f->dst, &learned_dst))
+            dst = &learned_dst;
         if (!dst && p->has_peer) {
             dst = &p->peer;
             ST_INC(st_nolearn);
@@ -216,6 +234,9 @@ static int port_send(Port *p, Frame *f)
     /* ttl 属于 CRC 覆盖范围，改了就必须重新封 CRC，否则下一跳校验必然失败 */
     f->ttl--;
     frame_seal(f);
+    /* sendbad是本机故障注入：在最终TTL/CRC更新后破坏，正常转发不受影响。 */
+    if (corrupt_crc)
+        f->crc ^= 0x0001;
 
     if (sendto(p->sock, f, frame_wire_size(f), 0,
                (struct sockaddr *)dst, sizeof(*dst)) < 0) {
@@ -229,9 +250,9 @@ static int port_send(Port *p, Frame *f)
 
 /* 按"等价端口组"转发：
  *   首选 = flow_hash(src,dst) % n；发送失败时依次改走其它等价端口。
- * 这就是转发面的"本地保护 / 快速重路由"——等价路径里断一条，业务不被丢，
- * 不需要控制面重新收敛（静态表也能扛单链路故障）。 */
-static int forward_equiv(IftEntry *e, Frame *f, const char *from, int cross)
+ * 仅当本地sendto明确报错时尝试备用端口；UDP发送成功不证明远端已收到，
+ * 因此不具备远端断电、黑洞等静默故障的自动探测能力。 */
+static int forward_equiv(IftEntry *e, Frame *f, const char *from, int cross, int corrupt_crc)
 {
     Frame orig = *f;
     int start = flow_index(e, f->src, f->dst);
@@ -247,20 +268,23 @@ static int forward_equiv(IftEntry *e, Frame *f, const char *from, int cross)
             log_line("[FWD]  %s: %s -> 出端口%d dst=0x%04X%s",
                      cross ? "内部转发(跨域途中)" : "内部转发", from, pid, f->dst,
                      e->n > 1 ? " [等价路径]" : "");
-        } else {
-            ST_INC(st_failover);
-            log_line("[REROUTE] 端口%d 不可用，改走等价端口%d dst=0x%04X",
-                     e->port[(start + k - 1) % e->n], pid, f->dst);
         }
-        if (port_send(p, f) == 0)
+        if (port_send(p, f, corrupt_crc) == 0) {
+            /* 只有备用端口实际提交成功才计重路由；仍不代表远端业务已收到。 */
+            if (k > 0) {
+                ST_INC(st_failover);
+                log_line("[REROUTE] 端口%d 不可用，改走等价端口%d dst=0x%04X",
+                         e->port[start], pid, f->dst);
+            }
             return 0;
+        }
         *f = orig;      /* 换端口重试前恢复 ttl 与 CRC，避免多减一次 */
     }
     return -1;
 }
 
 /* 帧的路由决策。in_port = -1 表示本节点自己产生的帧 */
-static void route_frame(Frame *f, int in_port)
+static void route_frame(Frame *f, int in_port, int corrupt_crc)
 {
     uint8_t net  = (uint8_t)(f->dst >> 8);
     uint8_t node = (uint8_t)(f->dst & 0xFF);
@@ -276,6 +300,13 @@ static void route_frame(Frame *f, int in_port)
     /* 1) 目的在本节点域内 */
     if (net == NET_LOCAL) {
         if (node == myid) {                 /* 就是发给本节点的，交付 */
+            if (corrupt_crc)
+                f->crc ^= 0x0001;
+            if (f->len >= MAX_PAYLOAD || !frame_verify(f)) {
+                ST_INC(st_crc_err);
+                log_line("[DROP] CRC校验失败 (本地交付)");
+                return;
+            }
             ST_INC(st_deliver);
             log_line("[RECV] 交付本节点: src=0x%04X 内容=\"%s\"", f->src, f->payload);
             return;
@@ -283,7 +314,7 @@ static void route_frame(Frame *f, int in_port)
         e = ift_find(f->dst);               /* 内部转发表按完整目的地址查 */
         if (e == NULL)
             goto no_route;
-        if (forward_equiv(e, f, from, 0) < 0)
+        if (forward_equiv(e, f, from, 0, corrupt_crc) < 0)
             goto no_route;
         return;
     }
@@ -293,7 +324,7 @@ static void route_frame(Frame *f, int in_port)
     if (p != NULL) {
         log_line("[FWD]  外部转发: %s -> 外部端口%d(网络0x%02X/%s) dst=0x%04X",
                  from, p->id, net, p->link, f->dst);
-        port_send(p, f);
+        port_send(p, f, corrupt_crc);
         return;
     }
 
@@ -301,7 +332,7 @@ static void route_frame(Frame *f, int in_port)
     e = ift_find((uint16_t)(net << 8));
     if (e == NULL)
         goto no_route;
-    if (forward_equiv(e, f, from, 1) < 0)
+    if (forward_equiv(e, f, from, 1, corrupt_crc) < 0)
         goto no_route;
     return;
 
@@ -355,7 +386,7 @@ static void *rx_loop(void *arg)
             learn_add(p, f.src, &from);
 
         f.payload[f.len] = '\0';            /* 长度已校验，此处一定在缓冲区内 */
-        route_frame(&f, p->id);
+        route_frame(&f, p->id, 0);
     }
     return NULL;
 }
@@ -560,6 +591,13 @@ static int validate_config(void)
 static void print_tables(void)
 {
     int i, j;
+    LearnEntry learned[MAX_PORTS][MAX_LEARN];
+    int counts[MAX_PORTS] = {0};
+
+    /* 每端口一次快照：数量和表项属于同一时刻，打印期间不持学习表锁。 */
+    for (i = 0; i < nports; i++)
+        if (ports[i].is_ext)
+            counts[i] = learn_snapshot(&ports[i], learned[i]);
 
     printf("==== 外部端口表 (节点%d) ====\n", myid);
     printf("  网络号  端口  信道   本地绑定            学到主机\n");
@@ -568,7 +606,7 @@ static void print_tables(void)
             continue;
         printf("  0x%02X    %d     %-5s  %-18s  %d\n",
                ports[i].ext_net, ports[i].id, ports[i].link,
-               ports[i].bind_ip[0] ? ports[i].bind_ip : "0.0.0.0(all)", ports[i].nlearn);
+               ports[i].bind_ip[0] ? ports[i].bind_ip : "0.0.0.0(all)", counts[i]);
     }
 
     printf("==== 内部转发表 ====\n");
@@ -582,14 +620,14 @@ static void print_tables(void)
 
     for (i = 0; i < nports; i++) {
         int k;
-        if (!ports[i].is_ext || ports[i].nlearn == 0)
+        if (!ports[i].is_ext || counts[i] == 0)
             continue;
         printf("==== 端口%d 学到的外部主机 ====\n", ports[i].id);
-        for (k = 0; k < ports[i].nlearn; k++) {
+        for (k = 0; k < counts[i]; k++) {
             char ip[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &ports[i].learn[k].sa.sin_addr, ip, sizeof(ip));
-            printf("  0x%04X -> %s:%u\n", ports[i].learn[k].addr, ip,
-                   ntohs(ports[i].learn[k].sa.sin_port));
+            inet_ntop(AF_INET, &learned[i][k].sa.sin_addr, ip, sizeof(ip));
+            printf("  0x%04X -> %s:%u\n", learned[i][k].addr, ip,
+                   ntohs(learned[i][k].sa.sin_port));
         }
     }
 }
@@ -611,8 +649,12 @@ static void print_stats(void)
 
 static void reset_stats(void)
 {
-    st_rx = st_tx = st_crc_err = st_src_err = st_noroute = 0;
-    st_ttl_drop = st_deliver = st_nolearn = st_senderr = st_failover = 0;
+    /* reset也可能与收包并发，不能混用普通写与原子增减。各计数独立清零。 */
+    unsigned long *counters[] = {&st_rx, &st_tx, &st_crc_err, &st_src_err, &st_noroute,
+                                &st_ttl_drop, &st_deliver, &st_nolearn, &st_senderr, &st_failover};
+    size_t i;
+    for (i = 0; i < sizeof(counters) / sizeof(*counters); i++)
+        __atomic_store_n(counters[i], 0UL, __ATOMIC_RELAXED);
     printf("统计计数已清零\n");
 }
 
@@ -641,6 +683,15 @@ int main(int argc, char *argv[])
     if (validate_config() < 0)
         return 1;
     myaddr = (uint16_t)((NET_LOCAL << 8) | myid);
+
+    /* 配置解析的memset结束后、任何接收线程启动前初始化锁。 */
+    for (i = 0; i < nports; i++) {
+        int error = pthread_mutex_init(&ports[i].learn_lock, NULL);
+        if (error != 0) {
+            fprintf(stderr, "学习表锁初始化失败: %s\n", strerror(error));
+            return 1;
+        }
+    }
 
     for (i = 0; i < nports; i++) {
         pthread_t tid;
@@ -695,9 +746,7 @@ int main(int argc, char *argv[])
             while (*data == ' ') data++;   /* 去掉内容前导空格 */
             dst = (uint16_t)strtoul(sdst, NULL, 16);
             frame_fill(&f, dst, myaddr, data);
-            if (strcmp(cmd, "sendbad") == 0)
-                f.crc ^= 0x0001;   /* 故意破坏CRC */
-            route_frame(&f, -1);
+            route_frame(&f, -1, strcmp(cmd, "sendbad") == 0);
         } else {
             printf("未知命令, 输入 help 查看帮助\n");
         }

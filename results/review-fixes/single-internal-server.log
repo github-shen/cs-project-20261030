@@ -1,0 +1,5 @@
+[READY] mode=listen local=00:AA:01:01:00:01 peer=00:AA:01:00:00:00 psm=0x1003 udp=42002 app=22002 security=low
+[BT] connected transport=L2CAP imtu=672 omtu=672
+[STATS] udp_rx=3 bt_tx=3 bt_rx=34 udp_tx=34 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=87 bt_rx_bytes=528
+[BT] disconnected: Connection reset by peer
+[STATS] udp_rx=3 bt_tx=3 bt_rx=34 udp_tx=34 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=87 bt_rx_bytes=528
