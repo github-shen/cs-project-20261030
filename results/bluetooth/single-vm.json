@@ -1,0 +1,102 @@
+{
+  "started_at": "2026-10-30T16:10:56.978306+00:00",
+  "transport": "AF_BLUETOOTH / SOCK_SEQPACKET / BTPROTO_L2CAP",
+  "radio": "EMULATED - physical radio NOT VERIFIED",
+  "checks": {
+    "bluetooth_peer_rejected": {
+      "status": "PASS",
+      "evidence": "[DROP] 非配置蓝牙对端或信道已占用"
+    },
+    "four_domain_12_directions": {
+      "status": "PASS",
+      "evidence": [
+        "[RECV] 来自0x0A01: \"bt_upper_to_down3\"",
+        "[RECV] 来自0x0A01: \"bt_upper_to_down5\"",
+        "[RECV] 来自0x0A01: \"bt_upper_to_down1\"",
+        "[RECV] 来自0x0B01: \"bt_down3_to_upper\"",
+        "[RECV] 来自0x0B01: \"bt_down3_to_down5\"",
+        "[RECV] 来自0x0B01: \"bt_down3_to_down1\"",
+        "[RECV] 来自0x0C01: \"bt_down5_to_upper\"",
+        "[RECV] 来自0x0C01: \"bt_down5_to_down3\"",
+        "[RECV] 来自0x0C01: \"bt_down5_to_down1\"",
+        "[RECV] 来自0x0D01: \"bt_down1_to_upper\"",
+        "[RECV] 来自0x0D01: \"bt_down1_to_down3\"",
+        "[RECV] 来自0x0D01: \"bt_down1_to_down5\""
+      ]
+    },
+    "bad_crc_across_bluetooth": {
+      "status": "PASS",
+      "evidence": "[DROP] CRC校验失败 (端口3)"
+    },
+    "source_binding_across_bluetooth": {
+      "status": "PASS",
+      "evidence": "[DROP] 源地址校验失败: 端口3连网络0x0A, 但帧源地址0x0B02"
+    },
+    "exact_datagram_length": {
+      "status": "PASS",
+      "evidence": "4 malformed datagrams rejected"
+    },
+    "64_address_flows_udp_and_bluetooth": {
+      "status": "PASS",
+      "evidence": {
+        "received": 64,
+        "node1_outputs": {
+          "1": 32,
+          "2": 32
+        },
+        "hash": "logical source/destination pair, not five-tuple"
+      }
+    },
+    "local_udp_peer_rejected": {
+      "status": "PASS",
+      "evidence": "[DROP] 非配置本地应用端口"
+    },
+    "disconnect_reconnect": {
+      "status": "PASS",
+      "evidence": {
+        "drop": "[DROP] 蓝牙信道未连接，无缓存",
+        "both_directions_recovered": true,
+        "offline_frame_replayed": false
+      }
+    }
+  },
+  "status": "PASS",
+  "controllers": [
+    {
+      "name": "hci0",
+      "address": "00:AA:01:00:00:00",
+      "kind": "virtual",
+      "up": true
+    },
+    {
+      "name": "hci1",
+      "address": "00:AA:01:01:00:01",
+      "kind": "virtual",
+      "up": true
+    },
+    {
+      "name": "hci2",
+      "address": "00:AA:01:02:00:02",
+      "kind": "virtual",
+      "up": true
+    }
+  ],
+  "channel_counters": {
+    "external-server": "[STATS] udp_rx=5 bt_tx=4 bt_rx=70 udp_tx=70 invalid=0 denied=1 offline=1 errors=0 connections=2 bt_tx_bytes=106 bt_rx_bytes=1101",
+    "internal-server": "[STATS] udp_rx=3 bt_tx=3 bt_rx=34 udp_tx=34 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=87 bt_rx_bytes=528",
+    "internal-client": "[STATS] udp_rx=34 bt_tx=34 bt_rx=3 udp_tx=3 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=528 bt_rx_bytes=87"
+  },
+  "node_counters": {
+    "1": "接收=75 发送=73 交付=0 CRC错误=1 源地址错误=1 无路由=0 TTL超期=0 未学到回退=1 发送失败=0 重路由=0",
+    "2": "接收=40 发送=40 交付=0 CRC错误=0 源地址错误=0 无路由=0 TTL超期=0 未学到回退=1 发送失败=0 重路由=0",
+    "3": "接收=73 发送=73 交付=0 CRC错误=0 源地址错误=0 无路由=0 TTL超期=0 未学到回退=2 发送失败=0 重路由=0",
+    "4": "接收=39 发送=39 交付=0 CRC错误=0 源地址错误=0 无路由=0 TTL超期=0 未学到回退=3 发送失败=0 重路由=0"
+  },
+  "hci_evidence": "btmon captured ACL Data on virtual controller hci0",
+  "cleanup": {
+    "processes_stopped": true,
+    "hci_restored": true,
+    "network_unchanged": true,
+    "bluetooth_service_restored": true
+  }
+}

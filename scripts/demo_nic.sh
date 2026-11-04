@@ -24,7 +24,7 @@ S()     { tmux send-keys -t "$1" "$2" Enter; }
 has()   { tmux has-session -t "$1" 2>/dev/null; }
 logs() {
     tmux capture-pane -pJ -t "$1" -S -400 2>/dev/null \
-        | grep -E '^\[(FWD|DROP|RECV)' | tail -"${2:-1}" | sed 's/^/    /'
+        | grep -E '^\[(FWD|DROP|RECV|REROUTE)' | tail -"${2:-1}" | sed 's/^/    /'
 }
 raw() {
     tmux capture-pane -pJ -t "$1" -S -"${2:-400}" 2>/dev/null \
@@ -54,24 +54,24 @@ A)
     [ -n "${B_WIFI:-}" ] && { ping -c1 -W1 "$B_WIFI" >/dev/null 2>&1 && say "无线网段 $B_WIFI 可达 ✓" || say "无线网段 $B_WIFI 不可达 ✗（无线场景会失败）"; }
 
     title "1. 有线路径（题目 2(2)+2(3)：外部转发 + 内部转发）"
-    say "0x0A01 → 0x0C01：节点1 --回环--> 节点2 --有线 2—3--> 节点3 --外部端口4(有线)--> 主机"
+    say "0x0A02 → 0x0C01：节点1 --回环--> 节点2 --有线 2—3--> 节点3 --外部端口4(有线)--> 主机"
     say "抓包对照: sudo tcpdump -i ${ETH_DEV:-ens33} -n udp 'port 3003 or port 2104'"
-    S h0x0A01 "send 0x0C01 nic-eth-1"
+    S h0x0A02 "send 0x0C01 nic-eth-1"
     sleep 1.6
     say "节点1："; logs n1 1
     say "节点2："; logs n2 1
     say "主机 0x0C01（在 A 机，经有线接入 B 机）："; logs h0x0C01 1
 
     title "2. 无线路径（同一目的、换源 → 换介质，题目 ps(2) 负载均衡）"
-    say "0x0A02 → 0x0C01：节点1 --无线 1—3--> 节点3（去程走 ens37）"
+    say "0x0A01 → 0x0C01：节点1 --无线 1—3--> 节点3（去程走 ${WIFI_DEV:-ens37}）"
     say "抓包对照: sudo tcpdump -i ${WIFI_DEV:-ens37} -n udp 'port 1102'"
-    S h0x0A02 "send 0x0C01 nic-wifi-1"
+    S h0x0A01 "send 0x0C01 nic-wifi-1"
     sleep 1.6
     say "节点1："; logs n1 1
     say "主机 0x0C01："; logs h0x0C01 1
 
     title "3. 无线外部信道（下行 0x0B，主机在 B 机、节点在 A 机）"
-    say "0x0A01 → 0x0B01：节点1 → 节点2 → 外部端口4(wifi) —— 跨机这一段走 ens37"
+    say "0x0A01 → 0x0B01：节点1 → 节点2 → 外部端口4(wifi) —— 跨机这一段走 ${WIFI_DEV:-ens37}"
     say "抓包对照: sudo tcpdump -i ${WIFI_DEV:-ens37} -n udp 'port 3104'"
     S h0x0A01 "send 0x0B01 nic-wifi-2"
     sleep 1.6
@@ -103,8 +103,8 @@ A)
     S n1 "send 0x0E01 nowhere"; sleep 1.0
     say "节点1："; logs n1 1
     S n1 "reset"; sleep 0.4
-    S h0x0A01 "send 0x0C01 stat-1";     sleep 0.8
-    S h0x0A02 "send 0x0C01 stat-wifi";  sleep 0.8
+    S h0x0A02 "send 0x0C01 stat-eth";   sleep 0.8
+    S h0x0A01 "send 0x0C01 stat-wifi";  sleep 0.8
     S h0x0A01 "sendbad 0x0C01 stat-bad"; sleep 0.8
     S spoof   "send 0x0B01 stat-spoof"; sleep 0.8
     S n1 "stats"; sleep 0.8
@@ -115,7 +115,8 @@ A)
     raw n1 400 | sed -n '/==== 外部端口表/,$p'
 
     title "演示结束"
-    say "两种介质都跑了真实流量：ens37(无线) 承载 1—3 与 0x0B 信道；ens33(有线) 承载 2—3、2—4 与 0x0C/0x0D 信道"
+    say "按日志和抓包核对接口分工：${WIFI_DEV:-ens37} 承载 1—3 与 0x0B；${ETH_DEV:-ens33} 承载 2—3、2—4 与 0x0C/0x0D"
+    say "接口标签不证明物理介质；虚拟接口实验仍需单独注明真实Wi-Fi/有线未验证。"
     say "想做硬证据: sudo bash scripts/capture.sh  然后重跑本演示，看两个 pcap 各自的端口对"
     say "断链实验:   bash scripts/link_test.sh"
     ;;
