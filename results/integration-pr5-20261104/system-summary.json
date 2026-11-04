@@ -1,0 +1,70 @@
+{
+  "started_at": "2026-11-04T13:46:15.102779+00:00",
+  "checks": {
+    "ovs": {
+      "returncode": 0,
+      "command": [
+        "python3",
+        "scripts/ovs_acceptance.py",
+        "--output",
+        "logs/ovs"
+      ]
+    },
+    "bluetooth": {
+      "returncode": 0,
+      "command": [
+        "python3",
+        "tests/test_bluetooth.py",
+        "--output",
+        "logs/bluetooth"
+      ]
+    },
+    "nic": {
+      "returncode": 0,
+      "command": [
+        "python3",
+        "tests/test_nic_regressions.py",
+        "--output",
+        "logs/nic"
+      ]
+    },
+    "learning_build": {
+      "returncode": 0,
+      "command": [
+        "gcc",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-O1",
+        "-g",
+        "-pthread",
+        "-fsanitize=thread",
+        "-fno-omit-frame-pointer",
+        "-fno-pie",
+        "-no-pie",
+        "tests/test_learning.c",
+        "src/frame.c",
+        "-o",
+        "bin/learning-tsan"
+      ]
+    },
+    "learning_tsan": {
+      "returncode": 0,
+      "command": [
+        "setarch",
+        "x86_64",
+        "-R",
+        "bin/learning-tsan"
+      ]
+    }
+  },
+  "environment_restored": true,
+  "status": "PASS",
+  "environment_checks": {
+    "default_route": true,
+    "namespaces": true,
+    "ovs_bridges": true,
+    "bluetooth_active": true,
+    "bluetooth_enabled": true
+  }
+}

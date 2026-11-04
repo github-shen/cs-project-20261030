@@ -1,0 +1,7 @@
+test_host_lengths (__main__.UDPRegression.test_host_lengths) ... ok
+test_switch_lengths (__main__.UDPRegression.test_switch_lengths) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.207s
+
+OK

@@ -1,8 +1,8 @@
 # 2026-11-04 集成验证记录
 
-main（`9a0d6b6`）与 PR #1～#4 的合并版本已通过本页列出的 Ubuntu 测试。测试中发现并修复了双接口回归在深目录下无法启动 tmux 的问题。README 的单机命令也已按文档顺序实际运行。
+main（`9a0d6b6`）与 PR #1～#4 的首轮合并版本已通过本页列出的 Ubuntu 测试；随后 PR #5 经审查、修复和回归，也已纳入 PR #6。两轮源码与测试范围分别记录如下。
 
-## 源码与修复
+## PR #1～#4 首轮集成
 
 | PR | 集成的提交 | 处理结果 |
 |---|---|---|
@@ -89,3 +89,34 @@ sudo ip netns exec ns1 tcpdump -Z root -i ovs1 -n -U -w node1.pcap udp
 测试结束后，本次 switch / host / bt-channel / btvirt 进程均已停止，临时 OVS 网桥和命名空间已删除，默认路由保持不变，虚拟 HCI 已释放，Bluetooth 服务恢复到测试前状态。README 专用 tmux 服务器也已关闭。
 
 本轮未重新运行双 VM 协调测试，未验证真实蓝牙配对、射频范围或物理 Wi-Fi。单 VM 的 L2CAP、OVS 和双 veth 测试不能替代这些硬件验证；本次没有发现尚未修复的已复现功能回归。
+
+## PR #5 追加审查与集成
+
+审查起点为 PR #5 的 `ced41ca` 和 PR #6 的 `15c58c1`。在原 PR 程序上复现三类配置问题后，修复为 `da9732c` 并推回 PR #5；集成源码提交为 `47f9c04`。
+
+| 问题 | 复现结果 | 修复 |
+|---|---|---|
+| 外部网络号改变进制 | `0A` 被拒绝；`10` 变为 `0x0A`；`010` 变为 `0x08` | 恢复原有十六进制语义，保留严格范围校验 |
+| CRLF 配置被误拒绝 | 行末 `\r` 被视为整数尾随字符，`id 1` 无法启动 | 配置分词同时识别 `\r` 和 `\n` |
+| 负数绕过无符号范围检查 | x86_64 上 `id -18446744073709551615` 被解析为 ID 1 | 转换前明确拒绝负号 |
+
+新增 6 项配置回归直接运行真实 `bin/switch`，不替代生产解析逻辑。原始 PR 出现 6 个失败子用例；修复后的独立 PR 和集成版本均通过。覆盖正常语法、CRLF、数字溢出、字段范围、重复 / 缺失 ID、非法属性和等价路径数量。
+
+学习表锁、锁内复制与原子清零和现有 PR #1 重叠。合并时保留 PR #6 的 CLI 快照实现，锁仅在配置完成后、接收线程启动前初始化一次，避免保留两处初始化。既有 sendbad 和精确 UDP 长度检查保持不变。
+
+集成中还发现 PR #4 的 UDP 测试把两个内部输出端口写成 0，与 PR #5 明确要求的 1～65535 不兼容。测试改为预分配三个不同的可用非零端口；尾随、短帧、超长数据报及正常收发的断言全部保留，没有放宽生产校验。
+
+在同一台 Ubuntu 测试虚拟机、独立目录中重新编译并验证：
+
+| 检查 | 结果 | 本轮证据 |
+|---|---|---|
+| 严格 C 编译 | switch / host / bt-channel 通过 | [build.txt](../results/integration-pr5-20261104/build.txt) |
+| 配置解析 | 6 项 OK | [config-tests.txt](../results/integration-pr5-20261104/config-tests.txt) |
+| UDP 长度 | 2 项 OK | [udp-tests.txt](../results/integration-pr5-20261104/udp-tests.txt) |
+| 节点核心 | 9 项 PASS | [core-summary.json](../results/integration-pr5-20261104/core-summary.json) |
+| OVS 内核数据面 | 32 项 PASS | [ovs-result.json](../results/integration-pr5-20261104/ovs-result.json) |
+| 虚拟蓝牙 HCI / L2CAP | 11 项 PASS | [bluetooth-summary.json](../results/integration-pr5-20261104/bluetooth-summary.json) |
+| 双接口 veth | 3 项 PASS | [nic-summary.json](../results/integration-pr5-20261104/nic-summary.json) |
+| 学习表 ThreadSanitizer | 编译、执行退出码均为 0 | [system-summary.json](../results/integration-pr5-20261104/system-summary.json) |
+
+核心 CI 增加了 `python3 -m unittest discover -s tests -p 'test_switch_config.py' -v`。其余复现命令与首轮一致；本轮未重复旧 OVS demo、README 交互操作或双 VM 协调。网络、命名空间、网桥及 Bluetooth 服务状态均在测试后恢复，公开汇总只保留状态对比，不包含测试机管理地址。
