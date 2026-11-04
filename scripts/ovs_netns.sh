@@ -100,7 +100,7 @@ do_demo() {
         local p
         for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null; done
         for p in "${pids[@]:-}"; do wait "$p" 2>/dev/null || true; done
-        [ -n "$W" ] && rm -rf "$W"
+        [ -n "$W" ] && echo "日志保留: $W"
     }
     trap cleanup EXIT
     do_setup >/dev/null || { echo "setup 失败"; exit 1; }
@@ -146,7 +146,10 @@ do_demo() {
     grep -hE '^\[(FWD|DROP)' "$W/n1.log" 2>/dev/null | tail -2 | sed 's/^/  n1: /'
     grep -hE '^\[(FWD|DROP)' "$W/n2.log" 2>/dev/null | tail -2 | sed 's/^/  n2: /'
 
-    echo "== 判据：n_packets 增长 + 主机收到，说明流量真的过了 br-int =="
+    if ! grep -q 'ovs-netns-test' "$W/h0x0C01.log"; then
+        echo "FAIL: 目的主机未收到测试消息" >&2; return 1
+    fi
+    echo "PASS: 目的主机收到测试消息；请结合前后流表与抓包核实 OVS 路径"
 }
 
 # ---------------- 入口 ----------------

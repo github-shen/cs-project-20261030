@@ -1,2 +1,3 @@
-# Linux部署脚本在Windows检出后也保留LF，避免bash把CR识别为参数。
+# Linux脚本和配置在Windows检出后保留LF。
 *.sh text eol=lf
+*.conf text eol=lf
