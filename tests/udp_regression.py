@@ -1,5 +1,6 @@
 """Linux UDP regression: run make, then python3 tests/udp_regression.py."""
 from binascii import crc_hqx
+from contextlib import ExitStack
 from pathlib import Path
 import os
 import socket
@@ -26,9 +27,14 @@ class UDPRegression(unittest.TestCase):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.addCleanup(self.sock.close)
         self.sock.bind(("127.0.0.1", 0))
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-            probe.bind(("127.0.0.1", 0))
-            self.port = probe.getsockname()[1]
+        # 配置只接受非零端口；同时预留以取得三个不同的可用端口。
+        with ExitStack() as stack:
+            self.ports = []
+            for _ in range(3):
+                probe = stack.enter_context(socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
+                probe.bind(("127.0.0.1", 0))
+                self.ports.append(probe.getsockname()[1])
+        self.port = self.ports[0]
 
     def start(self, name, *args):
         self.log = self.path / "output.log"
@@ -68,8 +74,8 @@ class UDPRegression(unittest.TestCase):
         config = self.path / "node.conf"
         config.write_text(
             f"id 1\nport 1 ext 0x0A {self.port} 127.0.0.1 {self.sock.getsockname()[1]}\n"
-            f"port 2 int 0 127.0.0.1 {self.sock.getsockname()[1]}\n"
-            f"port 3 int 0 127.0.0.1 {self.sock.getsockname()[1]}\n"
+            f"port 2 int {self.ports[1]} 127.0.0.1 {self.sock.getsockname()[1]}\n"
+            f"port 3 int {self.ports[2]} 127.0.0.1 {self.sock.getsockname()[1]}\n"
             "ift 0102 2,3\n", encoding="ascii",
         )
         self.start("switch", config)
