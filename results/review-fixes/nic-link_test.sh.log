@@ -1,0 +1,60 @@
+
+═══ 0. 准备 ═══
+  无线网卡: nrf-wifi (198.51.100.1)   有线网卡: nrf-eth (192.0.2.1)
+  将断开 nrf-wifi，完成断链阶段后自动恢复；Ctrl-C会触发恢复
+  确认执行请输入 YES:
+═══ 1. 基线：两块网卡都在线 ═══
+  节点1（f1 出端口1、f2 出端口2、f3/f4 出端口1）：
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0C01 [等价路径]
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口2 dst=0x0C01 [等价路径]
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0B01
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0D01
+  主机 0x0C01（f1 应收到 lt-eth-1；f2 应收到 lt-wifi-1）：
+    [RECV] 来自0x0A02: "lt-eth-1-baseline-4504"
+    [RECV] 来自0x0A01: "lt-wifi-1-baseline-4504"
+  主机 0x0D01（f4 应收到 lt-eth-2）：
+    [RECV] 来自0x0A01: "lt-eth-2-baseline-4504"
+  节点2（f3 应从外部端口4/wifi 送出）：
+    [FWD]  外部转发: 入端口1 -> 外部端口4(网络0x0B/wifi) dst=0x0B01
+    [FWD]  内部转发(跨域途中): 入端口1 -> 出端口2 dst=0x0D01
+
+═══ 2. 断开无线网络 nrf-wifi ═══
+    nrf-wifi@if13    DOWN           a2:5f:ec:7f:c4:0c <BROADCAST,MULTICAST>
+  节点1（f2应在本地发送报错后出现[REROUTE]，需同时核对接收端）：
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0C01 [等价路径]
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口2 dst=0x0C01 [等价路径]
+    [DROP] 端口2发送失败: Network is unreachable
+    [REROUTE] 端口2 不可用，改走等价端口1 dst=0x0C01
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0B01
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0D01
+  节点2（f3 走 wifi 外部端口，应出现 [DROP] ... 发送失败）：
+    [FWD]  外部转发: 入端口1 -> 外部端口4(网络0x0B/wifi) dst=0x0B01
+    [DROP] 端口4发送失败: Network is unreachable
+    [FWD]  内部转发(跨域途中): 入端口1 -> 出端口2 dst=0x0D01
+  主机 0x0C01：f1有线不受影响；f2可切到有线备用，核对带-down-4504的两条收包
+    [RECV] 来自0x0A02: "lt-eth-1-down-4504"
+    [RECV] 来自0x0A01: "lt-wifi-1-down-4504"
+  主机 0x0D01：f4(lt-eth-2, 有线) 应仍在
+    [RECV] 来自0x0A01: "lt-eth-2-down-4504"
+
+═══ 3. 恢复无线网络 nrf-wifi ═══
+  已恢复 nrf-wifi up
+  节点1：
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0C01 [等价路径]
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口2 dst=0x0C01 [等价路径]
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0B01
+    [FWD]  内部转发(跨域途中): 入端口3 -> 出端口1 dst=0x0D01
+  主机 0x0C01（两条都应在）：
+    [RECV] 来自0x0A02: "lt-eth-1-restored-4504"
+    [RECV] 来自0x0A01: "lt-wifi-1-restored-4504"
+  主机 0x0D01：
+    [RECV] 来自0x0A01: "lt-eth-2-restored-4504"
+  节点2（f3 恢复外部转发）：
+    [FWD]  外部转发: 入端口1 -> 外部端口4(网络0x0B/wifi) dst=0x0B01
+    [FWD]  内部转发(跨域途中): 入端口1 -> 出端口2 dst=0x0D01
+
+═══ 结果核对（依据本次阶段标记，不自动宣告通过） ═══
+  预期：f1/f4有线仍通；f2无线主用发送报错后走有线备用；f3单路径无线中断
+  核对接收端的baseline/down/restored标记及[REROUTE]，本次标识：4504
+  B机0x0B01不应收到lt-wifi-2-down-4504，恢复后应收到restored标记
+  该实验验证接口路径；真实Wi-Fi/有线介质需硬件证据，虚拟网卡不能代替。

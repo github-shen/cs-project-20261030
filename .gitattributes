@@ -1,0 +1,2 @@
+# Linux部署脚本在Windows检出后也保留LF，避免bash把CR识别为参数。
+*.sh text eol=lf

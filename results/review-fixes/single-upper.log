@@ -1,0 +1,7 @@
+主机0x0A01已就绪, 本地 0.0.0.0:29001, 连接到节点 127.0.0.1:49001
+命令: send <目的地址hex> <内容> | sendbad <目的地址hex> <内容> | quit
+[RECV] 来自0x0B01: "bt_down3_to_upper"
+[RECV] 来自0x0C01: "bt_down5_to_upper"
+[RECV] 来自0x0D01: "bt_down1_to_upper"
+[RECV] 来自0x0101: "node_crc_normal"
+[DROP] CRC校验失败, 帧已丢弃

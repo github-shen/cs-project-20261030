@@ -5,6 +5,11 @@ bin/
 # 抓包结果（capture.sh 输出）
 logs/
 *.pcap
+*.btsnoop
+__pycache__/
+*.pyc
+config-bt/*.local.json
+tests/*.local.json
 
 # nic.sh gen 生成的本地配置（含本机/对端真实 IP，不入库；模板在 config-nic-template/）
 config-nic/

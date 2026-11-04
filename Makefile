@@ -5,6 +5,12 @@ BIN     = bin
 
 all: $(BIN)/switch $(BIN)/host
 
+# 可选真实蓝牙传输，旧 UDP 构建不增加依赖。Ubuntu: libbluetooth-dev
+bluetooth: all $(BIN)/bt-channel
+
+$(BIN)/bt-channel: src/bt_channel.c src/frame.h | $(BIN)
+	$(CC) $(CFLAGS) -Wextra -o $@ src/bt_channel.c -lbluetooth
+
 $(BIN):
 	mkdir -p $(BIN)
 
@@ -17,4 +23,4 @@ $(BIN)/host: src/host.c src/frame.c src/frame.h | $(BIN)
 clean:
 	rm -rf $(BIN)
 
-.PHONY: all clean
+.PHONY: all bluetooth clean
