@@ -1,0 +1,18 @@
+== 运行中的进程 ==
+  4504 ./bin/switch config-ovs/node1.conf
+  4512 ./bin/switch config-ovs/node2.conf
+  4524 ./bin/switch config-ovs/node3.conf
+  4534 ./bin/switch config-ovs/node4.conf
+  4562 ./bin/host 0x0A01 9001 127.0.0.1 1103
+  4565 ./bin/host 0x0C01 9003 127.0.0.1 2104
+== 基线流表 ==
+   cookie=0x0, duration=2.642s, table=0, n_packets=23, n_bytes=1974, idle_age=0, priority=0 actions=NORMAL
+== ns1 的主机 0x0A01 发帧给 0x0C01（域内逐跳应全部经过 br-int）==
+== 之后流表（n_packets 应增长）==
+   cookie=0x0, duration=4.151s, table=0, n_packets=27, n_bytes=2212, idle_age=1, priority=0 actions=NORMAL
+== 外部主机 0x0C01 是否收到 ==
+  [RECV] 来自0x0A01: "ovs-netns-test"
+== 节点1 / 节点2 转发日志 ==
+  n1: [FWD]  内部转发(跨域途中): 入端口3 -> 出端口2 dst=0x0C01 [等价路径]
+PASS: 目的主机收到测试消息；请结合前后流表与抓包核实 OVS 路径
+日志保留: /tmp/tmp.7tOhbtZqlJ

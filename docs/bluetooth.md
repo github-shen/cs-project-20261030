@@ -21,7 +21,7 @@ flowchart LR
 
 适配器使用 `AF_BLUETOOTH`、`SOCK_SEQPACKET`、`BTPROTO_L2CAP`。两个不同PSM允许同一对控制器同时承载外部信道和内部链路。无线帧的下一跳仍由交换程序决定，适配器不改TTL或CRC，不算额外交换跳。
 
-原有 `type bt` 是显示字段，不负责建立蓝牙连接。必须把相应端口的 UDP peer 指向本机 `bt-channel`，并在链路另一端运行匹配的适配器。蓝牙扩展不依赖OVS；原有OVS承载模式独立保留，本轮蓝牙实验未对OVS重新验收。
+原有 `type bt` 是显示字段，不负责建立蓝牙连接。必须把相应端口的 UDP peer 指向本机 `bt-channel`，并在链路另一端运行匹配的适配器。蓝牙扩展不依赖OVS；两种模式的合并版本已分别通过2026-11-04的[集成验证](integration-test-report.md)。
 
 ## 编译与启动
 

@@ -1,0 +1,6 @@
+21:20:26.699073 IP 10.1.0.1.1102 > 10.1.0.3.2002: UDP, length 22
+	0x0000:  2a62 760e 7f6c 4e51 9555 4cba 0800 4500  *bv..lNQ.UL...E.
+	0x0010:  0032 dc97 4000 4011 4a1e 0a01 0001 0a01  .2..@.@.J.......
+	0x0020:  0003 044e 07d2 001e 1435 010c 010a 070e  ...N.....5......
+	0x0030:  587f 6f76 732d 6e65 746e 732d 7465 7374  X.ovs-netns-test
+reading from file /home/cnet/network-labs/cs-project-20261030-bluetooth/work/integration-20261104/logs/legacy-ovs/node1.pcap, link-type EN10MB (Ethernet), snapshot length 262144
