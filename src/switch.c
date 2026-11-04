@@ -90,7 +90,7 @@ static int parse_uint(const char *s, int base, unsigned long min,
     char *end = NULL;
     unsigned long value;
 
-    if (!s || !*s || !out)
+    if (!s || !*s || *s == '-' || !out)
         return -1;
     errno = 0;
     value = strtoul(s, &end, base);
@@ -407,12 +407,12 @@ static int load_config(const char *path)
         char *save = NULL, *tok, *hash = strchr(line, '#');
         unsigned long value;
         if (hash) *hash = '\0';
-        tok = strtok_r(line, " \t\n", &save);
+        tok = strtok_r(line, " \t\r\n", &save);
         if (!tok)
             continue;
 
         if (strcmp(tok, "id") == 0) {
-            char *sid = strtok_r(NULL, " \t\n", &save);
+            char *sid = strtok_r(NULL, " \t\r\n", &save);
             if (parse_uint(sid, 10, 1, 255, &value) < 0) {
                 fprintf(stderr, "配置错误: id 必须是 1..255 的整数\n");
                 fclose(fp);
@@ -431,8 +431,8 @@ static int load_config(const char *path)
             char *sid, *stype, *snet = NULL, *sludp, *sip, *sudp, *opt, *val;
             Port *p;
 
-            sid   = strtok_r(NULL, " \t\n", &save);
-            stype = strtok_r(NULL, " \t\n", &save);
+            sid   = strtok_r(NULL, " \t\r\n", &save);
+            stype = strtok_r(NULL, " \t\r\n", &save);
             if (!sid || !stype || (strcmp(stype, "int") != 0 && strcmp(stype, "ext") != 0)) {
                 fprintf(stderr, "配置错误: port 行缺少参数或类型不是 int/ext\n");
                 fclose(fp);
@@ -458,8 +458,9 @@ static int load_config(const char *path)
             nports++;
             p->is_ext = (strcmp(stype, "ext") == 0);
             if (p->is_ext) {
-                snet = strtok_r(NULL, " \t\n", &save);
-                if (parse_uint(snet, 0, 0, 255, &value) < 0) {
+                snet = strtok_r(NULL, " \t\r\n", &save);
+                /* 网络号沿用十六进制，兼容 0A、0x0A 及无前缀的 10。 */
+                if (parse_uint(snet, 16, 0, 255, &value) < 0) {
                     fprintf(stderr, "配置错误: 端口%d 外部网络号非法\n", p->id);
                     fclose(fp);
                     return -1;
@@ -469,9 +470,9 @@ static int load_config(const char *path)
             } else {
                 snprintf(p->link, sizeof(p->link), "int");
             }
-            sludp = strtok_r(NULL, " \t\n", &save);
-            sip   = strtok_r(NULL, " \t\n", &save);
-            sudp  = strtok_r(NULL, " \t\n", &save);
+            sludp = strtok_r(NULL, " \t\r\n", &save);
+            sip   = strtok_r(NULL, " \t\r\n", &save);
+            sudp  = strtok_r(NULL, " \t\r\n", &save);
             if (!sludp || !sip || !sudp) {
                 fprintf(stderr, "port 行参数不完整: %s\n", line);
                 return -1;
@@ -490,9 +491,9 @@ static int load_config(const char *path)
             snprintf(p->peer_ip, sizeof(p->peer_ip), "%s", sip);
 
             /* 可选属性：bind / dev / type */
-            for (opt = strtok_r(NULL, " \t\n", &save); opt;
-                 opt = strtok_r(NULL, " \t\n", &save)) {
-                val = strtok_r(NULL, " \t\n", &save);
+            for (opt = strtok_r(NULL, " \t\r\n", &save); opt;
+                 opt = strtok_r(NULL, " \t\r\n", &save)) {
+                val = strtok_r(NULL, " \t\r\n", &save);
                 if (!val) {
                     fprintf(stderr, "配置错误: 端口%d 属性 %s 缺少值\n", p->id, opt);
                     fclose(fp);
@@ -572,8 +573,8 @@ static int load_config(const char *path)
             }
         } else if (strcmp(tok, "ift") == 0) {
             /* ift <目的键(hex)> <端口1[,端口2...]> */
-            char *skey = strtok_r(NULL, " \t\n", &save);
-            char *slist = strtok_r(NULL, " \t\n", &save);
+            char *skey = strtok_r(NULL, " \t\r\n", &save);
+            char *slist = strtok_r(NULL, " \t\r\n", &save);
             IftEntry *e;
             char *lsave = NULL, *pt;
             if (!skey || !slist || parse_uint(skey, 16, 0, 65535, &value) < 0) {
