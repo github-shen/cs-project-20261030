@@ -25,6 +25,7 @@ jobs:
       - name: Build and validate frame handling
         run: |
           make bluetooth CFLAGS='-Wall -Wextra -Werror -O2'
+          python3 -m unittest discover -s tests -p 'test_switch_config.py' -v
           python3 -m unittest discover -s tests -p 'test_bluetooth_config.py' -v
           python3 tests/udp_regression.py -v
           python3 tests/test_switch_regressions.py --output logs/core

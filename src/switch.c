@@ -70,6 +70,7 @@ static int      nports = 0;
 static IftEntry ift[MAX_IFT];
 static int      nift = 0;
 static int      myid;
+static int      have_id;
 static uint16_t myaddr;
 
 /* 统计计数（多线程并发热点，用原子加减，避免丢更新） */
@@ -81,6 +82,23 @@ static unsigned long st_rx, st_tx, st_crc_err, st_src_err, st_noroute,
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* ---------------- 工具函数 ---------------- */
+
+/* 严格解析整数：拒绝空字符串、尾随字符、溢出和越界值。 */
+static int parse_uint(const char *s, int base, unsigned long min,
+                      unsigned long max, unsigned long *out)
+{
+    char *end = NULL;
+    unsigned long value;
+
+    if (!s || !*s || *s == '-' || !out)
+        return -1;
+    errno = 0;
+    value = strtoul(s, &end, base);
+    if (errno == ERANGE || end == s || *end != '\0' || value < min || value > max)
+        return -1;
+    *out = value;
+    return 0;
+}
 
 static Port *find_port(int id)
 {
@@ -406,62 +424,111 @@ static int load_config(const char *path)
     }
     while (fgets(line, sizeof(line), fp)) {
         char *save = NULL, *tok, *hash = strchr(line, '#');
+        unsigned long value;
         if (hash) *hash = '\0';
-        tok = strtok_r(line, " \t\n", &save);
+        tok = strtok_r(line, " \t\r\n", &save);
         if (!tok)
             continue;
 
         if (strcmp(tok, "id") == 0) {
-            char *sid = strtok_r(NULL, " \t\n", &save);
-            if (sid) myid = atoi(sid);
+            char *sid = strtok_r(NULL, " \t\r\n", &save);
+            if (parse_uint(sid, 10, 1, 255, &value) < 0) {
+                fprintf(stderr, "配置错误: id 必须是 1..255 的整数\n");
+                fclose(fp);
+                return -1;
+            }
+            if (have_id) {
+                fprintf(stderr, "配置错误: id 只能出现一次\n");
+                fclose(fp);
+                return -1;
+            }
+            myid = (int)value;
+            have_id = 1;
         } else if (strcmp(tok, "port") == 0) {
             /* port <端口号> <int|ext> [外部网络号] <本地UDP> <对端IP> <对端UDP>
              *      [bind <本地IP>] [dev <网卡>] [type <eth|wifi|bt>] */
             char *sid, *stype, *snet = NULL, *sludp, *sip, *sudp, *opt, *val;
             Port *p;
 
-            sid   = strtok_r(NULL, " \t\n", &save);
-            stype = strtok_r(NULL, " \t\n", &save);
-            if (!sid || !stype) continue;
+            sid   = strtok_r(NULL, " \t\r\n", &save);
+            stype = strtok_r(NULL, " \t\r\n", &save);
+            if (!sid || !stype || (strcmp(stype, "int") != 0 && strcmp(stype, "ext") != 0)) {
+                fprintf(stderr, "配置错误: port 行缺少参数或类型不是 int/ext\n");
+                fclose(fp);
+                return -1;
+            }
             if (nports >= MAX_PORTS) {
                 fprintf(stderr, "端口数超过上限 %d\n", MAX_PORTS);
                 return -1;
             }
-            p = &ports[nports++];
+            if (parse_uint(sid, 10, 1, 255, &value) < 0) {
+                fprintf(stderr, "配置错误: 非法端口号 '%s'\n", sid);
+                fclose(fp);
+                return -1;
+            }
+            p = &ports[nports];
             memset(p, 0, sizeof(*p));
-            p->id = atoi(sid);
+            p->id = (int)value;
+            nports++;
             p->is_ext = (strcmp(stype, "ext") == 0);
             if (p->is_ext) {
-                snet = strtok_r(NULL, " \t\n", &save);
-                if (!snet) continue;
-                p->ext_net = (uint8_t)strtoul(snet, NULL, 16);
+                snet = strtok_r(NULL, " \t\r\n", &save);
+                /* 网络号沿用十六进制，兼容 0A、0x0A 及无前缀的 10。 */
+                if (parse_uint(snet, 16, 0, 255, &value) < 0) {
+                    fprintf(stderr, "配置错误: 端口%d 外部网络号非法\n", p->id);
+                    fclose(fp);
+                    return -1;
+                }
+                p->ext_net = (uint8_t)value;
                 snprintf(p->link, sizeof(p->link), "ext");
             } else {
                 snprintf(p->link, sizeof(p->link), "int");
             }
-            sludp = strtok_r(NULL, " \t\n", &save);
-            sip   = strtok_r(NULL, " \t\n", &save);
-            sudp  = strtok_r(NULL, " \t\n", &save);
+            sludp = strtok_r(NULL, " \t\r\n", &save);
+            sip   = strtok_r(NULL, " \t\r\n", &save);
+            sudp  = strtok_r(NULL, " \t\r\n", &save);
             if (!sludp || !sip || !sudp) {
                 fprintf(stderr, "port 行参数不完整: %s\n", line);
                 return -1;
             }
-            p->lport = (uint16_t)atoi(sludp);
+            if (parse_uint(sludp, 10, 1, 65535, &value) < 0) {
+                fprintf(stderr, "配置错误: 端口%d 本地 UDP 端口非法: %s\n", p->id, sludp);
+                fclose(fp);
+                return -1;
+            }
+            p->lport = (uint16_t)value;
+            if (strcmp(sip, "-") != 0 && parse_uint(sudp, 10, 1, 65535, &value) < 0) {
+                fprintf(stderr, "配置错误: 端口%d 对端 UDP 端口非法: %s\n", p->id, sudp ? sudp : "(空)");
+                fclose(fp);
+                return -1;
+            }
             snprintf(p->peer_ip, sizeof(p->peer_ip), "%s", sip);
 
             /* 可选属性：bind / dev / type */
-            for (opt = strtok_r(NULL, " \t\n", &save); opt;
-                 opt = strtok_r(NULL, " \t\n", &save)) {
-                val = strtok_r(NULL, " \t\n", &save);
-                if (!val) break;
+            for (opt = strtok_r(NULL, " \t\r\n", &save); opt;
+                 opt = strtok_r(NULL, " \t\r\n", &save)) {
+                val = strtok_r(NULL, " \t\r\n", &save);
+                if (!val) {
+                    fprintf(stderr, "配置错误: 端口%d 属性 %s 缺少值\n", p->id, opt);
+                    fclose(fp);
+                    return -1;
+                }
                 if (strcmp(opt, "bind") == 0) {
                     snprintf(p->bind_ip, sizeof(p->bind_ip), "%s", val);
                 } else if (strcmp(opt, "dev") == 0) {
                     snprintf(p->dev, sizeof(p->dev), "%s", val);
                 } else if (strcmp(opt, "type") == 0) {
+                    if (strcmp(val, "eth") != 0 && strcmp(val, "wifi") != 0 &&
+                        strcmp(val, "bt") != 0 && strcmp(val, "int") != 0) {
+                        fprintf(stderr, "配置错误: 端口%d 信道类型非法: %s\n", p->id, val);
+                        fclose(fp);
+                        return -1;
+                    }
                     snprintf(p->link, sizeof(p->link), "%s", val);
                 } else {
-                    fprintf(stderr, "未知端口属性: %s\n", opt);
+                    fprintf(stderr, "配置错误: 未知端口属性: %s\n", opt);
+                    fclose(fp);
+                    return -1;
                 }
             }
 
@@ -473,7 +540,11 @@ static int load_config(const char *path)
             {
                 int on = 1;
                 struct sockaddr_in local;
-                setsockopt(p->sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+                if (setsockopt(p->sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+                    fprintf(stderr, "设置 SO_REUSEADDR 失败: %s\n", strerror(errno));
+                    fclose(fp);
+                    return -1;
+                }
                 if (p->dev[0]) {
 #ifdef SO_BINDTODEVICE
                     if (setsockopt(p->sock, SOL_SOCKET, SO_BINDTODEVICE,
@@ -505,37 +576,54 @@ static int load_config(const char *path)
             if (strcmp(sip, "-") != 0) {
                 memset(&p->peer, 0, sizeof(p->peer));
                 p->peer.sin_family = AF_INET;
-                p->peer.sin_port = htons((uint16_t)atoi(sudp));
+                p->peer.sin_port = htons((uint16_t)value);
                 if (inet_pton(AF_INET, sip, &p->peer.sin_addr) != 1) {
-                    if (p->is_ext) {
-                        fprintf(stderr, "[警告] 端口%d 对端IP非法: %s\n", p->id, sip);
-                    } else {
-                        fprintf(stderr, "端口%d 对端IP非法: %s\n", p->id, sip);
-                        return -1;
-                    }
+                    fprintf(stderr, "配置错误: 端口%d 对端IP非法: %s\n", p->id, sip);
+                    fclose(fp);
+                    return -1;
                 } else {
                     p->has_peer = 1;
                 }
             }
         } else if (strcmp(tok, "ift") == 0) {
             /* ift <目的键(hex)> <端口1[,端口2...]> */
-            char *skey = strtok_r(NULL, " \t\n", &save);
-            char *slist = strtok_r(NULL, " \t\n", &save);
+            char *skey = strtok_r(NULL, " \t\r\n", &save);
+            char *slist = strtok_r(NULL, " \t\r\n", &save);
             IftEntry *e;
             char *lsave = NULL, *pt;
-            if (!skey || !slist) continue;
-            if (nift >= MAX_IFT) {
-                fprintf(stderr, "转发表项超过上限 %d\n", MAX_IFT);
+            if (!skey || !slist || parse_uint(skey, 16, 0, 65535, &value) < 0) {
+                fprintf(stderr, "配置错误: ift 行目的键非法\n");
+                fclose(fp);
                 return -1;
             }
-            e = &ift[nift++];
-            e->key = (uint16_t)strtoul(skey, NULL, 16);
+            if (nift >= MAX_IFT) {
+                fprintf(stderr, "转发表项超过上限 %d\n", MAX_IFT);
+                fclose(fp);
+                return -1;
+            }
+            e = &ift[nift];
+            e->key = (uint16_t)value;
             e->n = 0;
-            for (pt = strtok_r(slist, ",", &lsave);
-                 pt && e->n < MAX_LB;
-                 pt = strtok_r(NULL, ",", &lsave))
-                e->port[e->n++] = atoi(pt);
-            if (e->n == 0) e->n = 1;   /* 兜底：至少一个端口 */
+            for (pt = strtok_r(slist, ",", &lsave); pt;
+                 pt = strtok_r(NULL, ",", &lsave)) {
+                if (e->n >= MAX_LB) {
+                    fprintf(stderr, "配置错误: ift 0x%04X 等价端口超过上限 %d\n", e->key, MAX_LB);
+                    fclose(fp);
+                    return -1;
+                }
+                if (parse_uint(pt, 10, 1, 255, &value) < 0) {
+                    fprintf(stderr, "配置错误: ift 0x%04X 含非法端口号 '%s'\n", e->key, pt);
+                    fclose(fp);
+                    return -1;
+                }
+                e->port[e->n++] = (int)value;
+            }
+            if (e->n == 0) {
+                fprintf(stderr, "配置错误: ift 0x%04X 没有指定端口\n", e->key);
+                fclose(fp);
+                return -1;
+            }
+            nift++;
         }
     }
     fclose(fp);
@@ -547,6 +635,10 @@ static int validate_config(void)
 {
     int i, j, k, bad = 0;
 
+    if (!have_id || myid < 1 || myid > 255) {
+        fprintf(stderr, "配置错误: 缺少有效的 id（1..255）\n");
+        return -1;
+    }
     if (nports == 0) {
         fprintf(stderr, "配置错误: 没有任何端口\n");
         return -1;
