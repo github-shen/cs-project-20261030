@@ -10,6 +10,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import tempfile
 import time
 from test_bluetooth import ROOT, environment
 
@@ -22,8 +23,9 @@ def main():
     out = opts.output.resolve(); out.mkdir(parents=True, exist_ok=False)
     fixture = out/'project'; fixture.mkdir()
     env = os.environ.copy(); env.pop('TMUX', None); env.pop('SSH_CONNECTION', None)
-    tmux_dir = out/'tmux'; tmux_dir.mkdir(mode=0o700)
-    env['TMUX_TMPDIR'] = str(tmux_dir)
+    # Unix套接字路径长度有限，不能把tmux目录放到任意深度的输出目录中。
+    tmux_dir = tempfile.TemporaryDirectory(prefix='cnet-nic-', dir='/tmp')
+    env['TMUX_TMPDIR'] = tmux_dir.name
     namespaces = []; links = []; sessions = []
     ns_a, ns_b = ('cnet-review-%d-%s' % (os.getpid(), side) for side in ('a','b'))
     result = {'started_at':datetime.now(timezone.utc).isoformat(), 'status':'FAIL',
@@ -154,6 +156,7 @@ def main():
         after=environment()
         result['cleanup']={'environment_unchanged':before==after,
                            'private_tmux_stopped':tmux('list-sessions',check=False).returncode!=0}
+        tmux_dir.cleanup()
         if not all(result['cleanup'].values()): result['status']='FAIL'
         (out/'summary.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
     return 0 if result['status']=='PASS' else 1
