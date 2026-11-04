@@ -1,0 +1,39 @@
+name: OVS acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'config-ovs/**'
+      - 'scripts/ovs*'
+      - 'tests/**'
+      - 'Makefile'
+      - '.github/workflows/ovs-acceptance.yml'
+permissions:
+  contents: read
+jobs:
+  linux-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OVS and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openvswitch-switch iproute2 build-essential python3
+          sudo systemctl start openvswitch-switch
+      - name: Portable tests and shell syntax
+        run: |
+          python3 -m unittest discover -s tests -p 'test_ovs_acceptance.py' -v
+          bash -n scripts/ovs_netns.sh
+      - name: Build original programs
+        run: make
+      - name: Isolated integration acceptance
+        run: sudo python3 scripts/ovs_acceptance.py --output logs/ci-ovs
+      - name: Preserve evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ovs-evidence
+          path: logs/ci-ovs/
+          if-no-files-found: warn

@@ -10,6 +10,7 @@
 #   sudo bash scripts/ovs_netns.sh setup     建 ns1~4，把 ovs1~4 移进去并配 10.1.0.k/24
 #   sudo bash scripts/ovs_netns.sh status    查看每个 ns 的网卡与 IP
 #   sudo bash scripts/ovs_netns.sh teardown  还原：网卡移回、IP 复位、删 ns
+#   sudo bash scripts/ovs_netns.sh verify    独立拓扑自动验收（保存结果，失败非零退出）
 #   sudo bash scripts/ovs_netns.sh demo      一键取证：起 4 节点 + 2 主机、发帧、打印 n_packets 增量
 #
 # 手动跑（8 个终端，节点和它的外部主机必须同一个 ns）：
@@ -94,16 +95,15 @@ pids=()
 do_demo() {
     local i
     W="$(mktemp -d)"
-    do_setup >/dev/null || { echo "setup 失败"; exit 1; }
 
     cleanup() {
         local p
         for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null; done
-        pkill -f 'bin/switch config-ovs' 2>/dev/null
-        pkill -f 'bin/host 0x' 2>/dev/null
+        for p in "${pids[@]:-}"; do wait "$p" 2>/dev/null || true; done
         [ -n "$W" ] && rm -rf "$W"
     }
     trap cleanup EXIT
+    do_setup >/dev/null || { echo "setup 失败"; exit 1; }
 
     # 后台进程的三条标准流都要重定向，否则会持有调用方的管道，脚本永不返回
     start_node() {   # $1 = 节点号
@@ -150,6 +150,10 @@ do_demo() {
 }
 
 # ---------------- 入口 ----------------
+if [ "${1:-}" = verify ]; then
+    shift
+    exec python3 scripts/ovs_acceptance.py "$@"
+fi
 need_root "$@"
 case "${1:-}" in
     setup)    do_setup ;;
