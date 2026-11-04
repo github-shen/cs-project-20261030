@@ -361,7 +361,9 @@ static void *rx_loop(void *arg)
 
         /* 实收字节必须够 帧头 + len，否则说明报文被截断；
          * len 必须 < MAX_PAYLOAD，给下面的 '\0' 留一个字节，避免写越界 */
-        if ((size_t)n < (size_t)FRAME_HDR_SIZE + (size_t)f.len ||
+        /* Legal frames are smaller than sizeof(f) because len < MAX_PAYLOAD.
+         * A datagram truncated to sizeof(f) therefore cannot pass equality. */
+        if ((size_t)n != (size_t)FRAME_HDR_SIZE + (size_t)f.len ||
             f.len >= MAX_PAYLOAD) {
             ST_INC(st_crc_err);
             log_line("[DROP] 帧长度非法或截断 (端口%d, 收到%ld字节, len=%u)",
