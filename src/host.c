@@ -37,7 +37,9 @@ static void *rx_loop(void *arg)
         n = recv(sockfd, &f, sizeof(f), 0);
         if (n < (ssize_t)FRAME_HDR_SIZE)
             continue;
-        if ((size_t)n < (size_t)FRAME_HDR_SIZE + (size_t)f.len || f.len >= MAX_PAYLOAD) {
+        /* Legal frames are smaller than sizeof(f) because len < MAX_PAYLOAD.
+         * A datagram truncated to sizeof(f) therefore cannot pass equality. */
+        if ((size_t)n != (size_t)FRAME_HDR_SIZE + (size_t)f.len || f.len >= MAX_PAYLOAD) {
             printf("[DROP] 帧长度非法或截断\n");
             continue;
         }
