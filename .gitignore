@@ -1,6 +1,8 @@
 # 编译产物
 bin/
 *.o
+__pycache__/
+*.pyc
 
 # 抓包结果（capture.sh 输出）
 logs/
