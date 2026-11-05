@@ -4,6 +4,6 @@
   "peer_address": "02:00:00:00:00:01",
   "psm": "0x1001",
   "udp_port": 19001,
-  "app_port": 9001,
+  "app_port": 9101,
   "security": "medium"
 }

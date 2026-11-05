@@ -1,0 +1,101 @@
+{
+  "started_at": "2026-11-05T14:46:45.101476+00:00",
+  "status": "PASS",
+  "checks": {
+    "four_nodes_12_directions": {
+      "status": "PASS",
+      "evidence": {
+        "delivered": 12
+      }
+    },
+    "all_six_external_attachments": {
+      "status": "PASS",
+      "evidence": [
+        {
+          "network": "0x0A",
+          "node": 1,
+          "port": 3,
+          "both_directions": true
+        },
+        {
+          "network": "0x0A",
+          "node": 3,
+          "port": 2,
+          "both_directions": true
+        },
+        {
+          "network": "0x0B",
+          "node": 2,
+          "port": 1,
+          "both_directions": true
+        },
+        {
+          "network": "0x0B",
+          "node": 4,
+          "port": 1,
+          "both_directions": true
+        },
+        {
+          "network": "0x0C",
+          "node": 3,
+          "port": 3,
+          "both_directions": true
+        },
+        {
+          "network": "0x0C",
+          "node": 4,
+          "port": 5,
+          "both_directions": true
+        }
+      ]
+    },
+    "three_domains_all_gateway_combinations": {
+      "status": "PASS",
+      "evidence": {
+        "gateway_combinations": 8,
+        "delivered": 48,
+        "duplicate_deliveries": 0
+      }
+    },
+    "multi_host_return_from_other_attachment": {
+      "status": "PASS",
+      "evidence": [
+        {
+          "address": "0xa10",
+          "entry_node": 1,
+          "return_node": 3,
+          "ttl": 7,
+          "crc_valid": true
+        },
+        {
+          "address": "0xa11",
+          "entry_node": 1,
+          "return_node": 3,
+          "ttl": 7,
+          "crc_valid": true
+        }
+      ]
+    },
+    "stable_flows_use_both_internal_paths": {
+      "status": "PASS",
+      "evidence": {
+        "0xa01": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "0xa02": [
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  },
+  "physical_media_verified": false,
+  "cleanup": {
+    "processes_stopped": true
+  }
+}

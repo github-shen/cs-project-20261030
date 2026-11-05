@@ -1,0 +1,250 @@
+{
+  "status": "PASS",
+  "error": null,
+  "checks": [
+    {
+      "name": "setup_and_ready",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "OVS_business_delivery",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-1-internal"
+    },
+    {
+      "name": "OVS_business_counter",
+      "status": "PASS",
+      "detail": {
+        "before": 0,
+        "after": 2
+      }
+    },
+    {
+      "name": "external_1_to_2",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-2-external"
+    },
+    {
+      "name": "external_1_to_3",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-3-external"
+    },
+    {
+      "name": "external_2_to_1",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-4-external"
+    },
+    {
+      "name": "external_2_to_3",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-5-external"
+    },
+    {
+      "name": "external_3_to_1",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-6-external"
+    },
+    {
+      "name": "external_3_to_2",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-7-external"
+    },
+    {
+      "name": "internal_1_to_2",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-8-internal"
+    },
+    {
+      "name": "internal_1_to_3",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-9-internal"
+    },
+    {
+      "name": "internal_1_to_4",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-10-internal"
+    },
+    {
+      "name": "internal_2_to_1",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-11-internal"
+    },
+    {
+      "name": "internal_2_to_3",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-12-internal"
+    },
+    {
+      "name": "internal_2_to_4",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-13-internal"
+    },
+    {
+      "name": "internal_3_to_1",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-14-internal"
+    },
+    {
+      "name": "internal_3_to_2",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-15-internal"
+    },
+    {
+      "name": "internal_3_to_4",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-16-internal"
+    },
+    {
+      "name": "internal_4_to_1",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-17-internal"
+    },
+    {
+      "name": "internal_4_to_2",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-18-internal"
+    },
+    {
+      "name": "internal_4_to_3",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-19-internal"
+    },
+    {
+      "name": "external_attachment_1_via_1",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-20-external"
+    },
+    {
+      "name": "external_attachment_1_via_3",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-21-external"
+    },
+    {
+      "name": "external_attachment_2_via_2",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-22-external"
+    },
+    {
+      "name": "external_attachment_2_via_4",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-23-external"
+    },
+    {
+      "name": "external_attachment_3_via_3",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-24-external"
+    },
+    {
+      "name": "external_attachment_3_via_4",
+      "status": "PASS",
+      "detail": "ovs-2a88caf7-25-external"
+    },
+    {
+      "name": "reject_crc",
+      "status": "PASS",
+      "detail": {
+        "marker": "ovs-2a88caf7-26-crc",
+        "drop": "CRC校验失败",
+        "negative_window_seconds": 0.5
+      }
+    },
+    {
+      "name": "reject_source",
+      "status": "PASS",
+      "detail": {
+        "marker": "ovs-2a88caf7-28-source",
+        "drop": "源地址校验失败",
+        "negative_window_seconds": 0.5
+      }
+    },
+    {
+      "name": "reject_route",
+      "status": "PASS",
+      "detail": {
+        "marker": "ovs-2a88caf7-30-route",
+        "drop": "无路由",
+        "negative_window_seconds": 0.5
+      }
+    },
+    {
+      "name": "flow_stability_and_two_paths",
+      "status": "PASS",
+      "detail": {
+        "2001:db9::1": [
+          "3/3",
+          "3/3"
+        ],
+        "2001:db9::2": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::3": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::4": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::5": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::6": [
+          "3/3",
+          "3/3"
+        ],
+        "2001:db9::7": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::8": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::9": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::a": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::b": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::c": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::d": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::e": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::f": [
+          "4/5",
+          "4/5"
+        ],
+        "2001:db9::10": [
+          "4/5",
+          "4/5"
+        ]
+      }
+    },
+    {
+      "name": "table_and_stats",
+      "status": "PASS",
+      "detail": "four nodes"
+    }
+  ],
+  "cleanup_errors": [],
+  "bridge": "av2a88caf7",
+  "physical_media_verified": false,
+  "mode": "hierarchical"
+}

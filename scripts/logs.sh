@@ -5,6 +5,6 @@
 #       bash scripts/logs.sh n1 20              (只看 n1 的最后 20 行也可以直接 tail)
 for w in "$@"; do
     echo "--- $w ---"
-    tmux capture-pane -pJ -t "$w" -S -400 2>/dev/null \
+    tmux -L cnet capture-pane -pJ -t "$w" -S -400 2>/dev/null \
         | grep -E '^\[(FWD|DROP|RECV)' || echo "    (暂无日志)"
 done

@@ -6,6 +6,8 @@ on:
       - 'src/**'
       - 'config-ovs/**'
       - 'scripts/ovs*'
+      - 'scripts/channel.py'
+      - 'scripts/hier*'
       - 'tests/**'
       - 'Makefile'
       - '.github/workflows/ovs-acceptance.yml'
@@ -29,11 +31,13 @@ jobs:
       - name: Build original programs
         run: make
       - name: Isolated integration acceptance
-        run: sudo python3 scripts/ovs_acceptance.py --output logs/ci-ovs
+        run: |
+          sudo python3 scripts/ovs_acceptance.py --output logs/ci-ovs
+          sudo python3 scripts/ovs_acceptance.py --hierarchical --output logs/ci-ovs-hier
       - name: Preserve evidence even on failure
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ovs-evidence
-          path: logs/ci-ovs/
+          path: logs/ci-ovs*/
           if-no-files-found: warn

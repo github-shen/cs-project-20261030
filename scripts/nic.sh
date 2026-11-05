@@ -60,8 +60,11 @@ gen)
     for n in 1 2 3 4; do
         sed -e "s/@A_ETH@/$A_ETH/g" -e "s/@A_WIFI@/$A_WIFI/g" \
             -e "s/@B_ETH@/$B_ETH/g" -e "s/@B_WIFI@/$B_WIFI/g" \
-            "$TPL/node$n.conf" > "$OUT/node$n.conf"
+            "$TPL/node$n.conf" | sed -e "s/ens33/$ETH_DEV/g" -e "s/ens37/$WIFI_DEV/g" > "$OUT/node$n.conf"
     done
+    sed -e "s/@A_ETH@/$A_ETH/g" -e "s/@A_WIFI@/$A_WIFI/g" \
+        -e "s/@B_ETH@/$B_ETH/g" -e "s/@B_WIFI@/$B_WIFI/g" \
+        "$TPL/channels.json" > "$OUT/channels.json"
     # 供 run_nic.sh / link_test.sh / capture.sh 读取
     cat > "$OUT/ips.env" <<EOF
 # 由 scripts/nic.sh gen 生成，勿手改
@@ -99,10 +102,10 @@ check)
     done
     echo
     echo "== UDP 端口占用（应为空） =="
-    ss -uan 2>/dev/null | grep -E ':(1101|1102|1103|2001|2002|2003|2104|3001|3002|3003|3104|4001|4002|4103|900[1-6])\b' || echo "  无占用"
+    ss -uan 2>/dev/null | grep -E ':(110[1-3]|200[14]|210[23]|300[234]|3101|400[234]|410[15]|900[1235]|910[1-3])\b' || echo "  无占用"
     echo
     echo "== 两个网段不通时的排查 =="
-    echo "  防火墙:  sudo ufw allow 1101:9006/udp   （或 sudo ufw disable）"
+    echo "  防火墙: 按节点配置放行对端所需 UDP 端口；共享信道还使用 9101～9103"
     echo "  无线不通: 宿主机 WiFi 可能开了 AP 隔离，改用手机热点或以太网桥接"
     echo "  网卡名不对: ETH_DEV=ens160 WIFI_DEV=wlan0 bash scripts/nic.sh detect"
     ;;

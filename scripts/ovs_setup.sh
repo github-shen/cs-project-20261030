@@ -4,9 +4,9 @@
 # 做的事：
 #   1) 确保 openvswitch-switch 已安装并运行；
 #   2) 建网桥 br-int；
-#   3) 建 4 个 internal 端口 ovs1..ovs4，分别配 10.1.0.1~4/24；
+#   3) 建 7 个 internal 端口 ovs1..4、ovs11..13，分别配 10.1.0.k/24；
 #   4) 装一条 NORMAL 流表，让 br-int 做二层自学习转发；
-#   5) 顺手关掉 ARP flux（arp_ignore/arp_announce），避免 4 个端口在同一台机器上互相抢答 ARP。
+#   5) 设置 arp_ignore/arp_announce，避免同机端口互相抢答 ARP。
 #
 # 用法：sudo bash scripts/ovs_setup.sh
 # 之后：bash scripts/run_tmux.sh config-ovs
@@ -36,7 +36,7 @@ else
     echo "== 网桥 $BR 已存在，复用 =="
 fi
 
-for k in 1 2 3 4; do
+for k in 1 2 3 4 11 12 13; do
     ovs-vsctl --may-exist add-port "$BR" "ovs$k" -- set Interface "ovs$k" type=internal
     ip link set "ovs$k" up
     ip addr replace "${PREFIX}.${k}/24" dev "ovs$k"
@@ -57,4 +57,5 @@ echo "================ 接口地址 ================"
 ip -4 -br addr show | grep -E 'ovs[1-4]' || true
 echo
 echo "搭建完成。下一步:"
+echo "  sudo bash scripts/ovs_netns.sh setup"
 echo "  bash scripts/run_tmux.sh config-ovs"

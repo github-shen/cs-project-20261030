@@ -1,0 +1,131 @@
+{
+  "started_at": "2026-11-05T14:46:48.826749+00:00",
+  "status": "PASS",
+  "checks": {
+    "internal_sid_routing_12_directions": {
+      "status": "PASS",
+      "evidence": {
+        "delivered": 12,
+        "routing_key": "SID; diagnostic destination PID=0"
+      }
+    },
+    "six_physical_external_attachments": {
+      "status": "PASS",
+      "evidence": [
+        {
+          "lport": 65535,
+          "sid": 1,
+          "pid": 3,
+          "both_directions": true
+        },
+        {
+          "lport": 65535,
+          "sid": 3,
+          "pid": 2,
+          "both_directions": true
+        },
+        {
+          "lport": 3,
+          "sid": 2,
+          "pid": 1,
+          "both_directions": true
+        },
+        {
+          "lport": 3,
+          "sid": 4,
+          "pid": 1,
+          "both_directions": true
+        },
+        {
+          "lport": 5,
+          "sid": 3,
+          "pid": 3,
+          "both_directions": true
+        },
+        {
+          "lport": 5,
+          "sid": 4,
+          "pid": 5,
+          "both_directions": true
+        }
+      ]
+    },
+    "up_down_and_cross_child_forwarding": {
+      "status": "PASS",
+      "evidence": {
+        "gateway_combinations": 8,
+        "delivered": 48,
+        "duplicate_deliveries": 0
+      }
+    },
+    "shared_learning_and_epid_removal": {
+      "status": "PASS",
+      "evidence": [
+        {
+          "source": "2001:db9::10",
+          "entry": 1,
+          "return": 3,
+          "external_epid_removed": true,
+          "crc_valid": true
+        },
+        {
+          "source": "2001:db9::11",
+          "entry": 1,
+          "return": 3,
+          "external_epid_removed": true,
+          "crc_valid": true
+        }
+      ]
+    },
+    "source_field_prefix_crc_and_framing_rejections": {
+      "status": "PASS",
+      "evidence": [
+        "bad_crc",
+        "truncated",
+        "trailing",
+        "wrong_field",
+        "wrong_prefix",
+        "external_epid",
+        "outside_field_bits_accepted"
+      ]
+    },
+    "weighted_stable_flows_and_external_status": {
+      "status": "PASS",
+      "evidence": {
+        "flows": 64,
+        "received": 128,
+        "stable": true,
+        "exit_counts": {
+          "3/3": 18,
+          "4/5": 46
+        },
+        "disabled_exit_excluded": true
+      }
+    },
+    "internal_status_and_backup_without_epid_change": {
+      "status": "PASS",
+      "evidence": {
+        "target_epid": "4/5",
+        "baseline_port": 2,
+        "disabled_port": 2,
+        "backup_port": 1,
+        "restored": true
+      }
+    },
+    "non_byte_aligned_ab_forwarding": {
+      "status": "PASS",
+      "evidence": {
+        "ab": "29/11",
+        "fields": {
+          "hB1": 3,
+          "hC1": 5
+        },
+        "directions": 6
+      }
+    }
+  },
+  "physical_media_verified": false,
+  "cleanup": {
+    "processes_stopped": true
+  }
+}

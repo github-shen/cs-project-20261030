@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "checks": {
+    "eleven_ready_sessions_and_readme_delivery": "PASS",
+    "duplicate_launch_preserves_running_sessions": "PASS",
+    "partial_startup_rolled_back": "PASS"
+  },
+  "cleanup": {
+    "private_tmux_stopped": true
+  }
+}

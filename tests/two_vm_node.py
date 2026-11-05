@@ -72,22 +72,27 @@ def main():
         address=re.search(r'BD Address:\s*([0-9A-F:]{17})',command('hciconfig',hci.name)).group(1)
         start('btmon',['btmon','-i',hci.name,'-w',out/'transport.btsnoop'])
         emit({'ready':o.role,'address':address})
-        host_params={'upper':('0x0A01',29001,49001),'down3':('0x0B01',29002,23104),
-                     'down5':('0x0C01',29003,22104),'down1':('0x0D01',29004,24103)}
+        host_params={'upper':('0x0A01',29001,49001),'down3':('0x0B01',29002,23101),
+                     'down5':('0x0C01',29003,22103)}
         for line in sys.stdin:
             try:
                 req=json.loads(line); action=req['action']; answer=None
                 if action=='setup':
                     peer=req['peer']; configs=make_configs(out)
                     # 跨VM的两条UDP链路显式改为对端IP；蓝牙端口仍只连本机适配器。
-                    edits={2:{2:o.peer_ip,3:o.peer_ip},3:{1:o.peer_ip},4:{1:o.peer_ip}}
+                    edits={2:{2:o.peer_ip,3:o.peer_ip},3:{1:o.peer_ip},4:{2:o.peer_ip}}
                     owned_nodes=(1,2) if o.role=='a' else (3,4)
                     for n in owned_nodes:
                         path=configs/('node%d.conf'%n); result=[]
                         for row in path.read_text().splitlines():
                             w=row.split()
-                            if w and w[0]=='port' and int(w[1]) in edits.get(n,{}):
-                                w[4]=edits[n][int(w[1])]; row=' '.join(w)
+                            if w and w[0]=='port':
+                                if w[2]=='int' and int(w[1]) in edits.get(n,{}):
+                                    w[4]=edits[n][int(w[1])]
+                                # 下行3终端位于 A，节点4的第二接入需要跨VM。
+                                if w[2]=='ext' and n==4 and int(w[1])==1:
+                                    w[5]=o.peer_ip
+                                row=' '.join(w)
                             result.append(row)
                         path.write_text('\n'.join(result)+'\n')
                     if o.role=='a':
@@ -95,12 +100,12 @@ def main():
                         gateway('ext','listen',address,peer,'0x1001',41003,21103).wait('[READY]')
                         gateway('int','connect',address,peer,'0x1003',41102,21102)
                     else:
-                        gateway('int','listen',address,peer,'0x1003',42002,22002).wait('[READY]')
+                        gateway('int','listen',address,peer,'0x1003',44003,24003).wait('[READY]')
                         gateway('ext','connect',address,peer,'0x1001',49001,29001)
                     for n in owned_nodes:
                         proc=start('node%d'%n,[ROOT/'bin/switch',configs/('node%d.conf'%n)])
                         proc.wait('已启动'); proc.send('table')
-                    for name in (['down3'] if o.role=='a' else ['upper','down5','down1']):
+                    for name in (['down3'] if o.role=='a' else ['upper','down5']):
                         addr,udp,dest=host_params[name]
                         start(name,[ROOT/'bin/host',addr,udp,'127.0.0.1',dest]).wait('已就绪')
                     answer='started'

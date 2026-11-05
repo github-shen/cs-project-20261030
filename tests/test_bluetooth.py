@@ -94,19 +94,22 @@ def make_configs(out):
                 pos = 4 if words[2] == 'ext' else 3
                 words[pos] = str(int(words[pos])+20000)
                 words[pos+2] = str(int(words[pos+2])+20000)
+                if words[2] == 'ext':
+                    # 本夹具每个外部网络只放一个主机；两个接入节点共享该终端。
+                    words[pos+2] = str(29000 + int(words[3],16) - 9)
                 if node == 1 and words[1] == '3':
                     words[pos+2] = '41003'; words = words[:pos+3]+['type', 'bt']
                 if node == 1 and words[1] == '2':
                     words[pos+2] = '41102'; words = words[:pos+3]+['type', 'bt']
-                if node == 3 and words[1] == '2':
-                    words[pos+2] = '42002'; words = words[:pos+3]+['type', 'bt']
+                if node == 4 and words[1] == '3':
+                    words[pos+2] = '44003'; words = words[:pos+3]+['type', 'bt']
                 line = ' '.join(words)
             lines.append(line)
         (target/('node%d.conf'%node)).write_text('\n'.join(lines)+'\n')
     return target
 
 
-def main():
+def main(hierarchical=False):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=ROOT/'logs'/datetime.now().strftime('bluetooth-%Y%m%d-%H%M%S'))
     opt = parser.parse_args()
@@ -117,7 +120,8 @@ def main():
     processes = []
     result = {'started_at': datetime.now(timezone.utc).isoformat(),
               'transport': 'AF_BLUETOOTH / SOCK_SEQPACKET / BTPROTO_L2CAP',
-              'radio': 'EMULATED - physical radio NOT VERIFIED', 'checks': {}, 'status': 'FAIL'}
+              'radio': 'EMULATED - physical radio NOT VERIFIED', 'checks': {}, 'status': 'FAIL',
+              'mode': 'hierarchical' if hierarchical else 'legacy'}
     before_hci = set(Path('/sys/class/bluetooth').glob('hci*'))
     before = environment()
     # 无真实/已有控制器时才允许临时暂停桌面配对服务，结束后恢复原状态。
@@ -178,102 +182,17 @@ def main():
         for mode in ('listen', 'connect'):
             check('queued_offline_frames_'+mode,
                   lambda m=mode: queued_offline_frames(start, ROOT, frame, a, b, m))
-        int_server = gateway('internal-server','listen',b,a,'0x1003',42002,22002)
+        int_server = gateway('internal-server','listen',b,a,'0x1003',44003,24003)
         int_server.wait('[READY]')
         ext_client = gateway('external-client','connect',b,a,'0x1001',49001,29001)
         ext_client.wait('[BT] connected'); ext_server.wait('[BT] connected')
         int_client = gateway('internal-client','connect',a,b,'0x1003',41102,21102)
         int_client.wait('[BT] connected'); int_server.wait('[BT] connected')
-        configs = make_configs(out)
-        nodes = {i: start('node%d'%i,[ROOT/'bin/switch',configs/('node%d.conf'%i)]) for i in range(1,5)}
-        for i,n in nodes.items(): n.wait('节点%d已启动'%i); n.send('table')
-        host_params = {'upper':('0x0A01',29001,49001), 'down3':('0x0B01',29002,23104),
-                       'down5':('0x0C01',29003,22104), 'down1':('0x0D01',29004,24103)}
-        def host(name, log_name=None):
-            addr,udp,port = host_params[name]
-            h = start(log_name or name,[ROOT/'bin/host',addr,udp,'127.0.0.1',port]); h.wait('已就绪'); return h
-        hosts = {k:host(k) for k in host_params}
-        def connectivity():
-            evidence=[]
-            for source in hosts:
-                for dest in hosts:
-                    if source == dest: continue
-                    token='bt_%s_to_%s'%(source,dest)
-                    hosts[source].send('send %s %s'%(host_params[dest][0],token))
-                    evidence.append(hosts[dest].wait(token))
-            return evidence
-        check('four_domain_12_directions',connectivity)
-        def crc():
-            offset=len(nodes[1].lines)
-            hosts['upper'].send('sendbad 0x0C01 reject_bad_crc')
-            evidence=nodes[1].wait('CRC校验失败',offset)
-            time.sleep(.2)
-            assert not any('reject_bad_crc' in x for x in hosts['down5'].lines)
-            return evidence
-        check('bad_crc_across_bluetooth',crc)
-
-        def node_crc():
-            offset=len(hosts['upper'].lines)
-            nodes[1].send('send 0x0A01 node_crc_normal')
-            normal=hosts['upper'].wait('node_crc_normal',offset)
-            nodes[1].send('sendbad 0x0A01 node_crc_rejected')
-            dropped=hosts['upper'].wait('CRC校验失败',offset)
-            assert not any('[RECV]' in s and 'node_crc_rejected' in s for s in hosts['upper'].lines)
-            return {'normal':normal,'corrupted':dropped}
-        check('node_sendbad_across_bluetooth',node_crc)
-
-        hosts['upper'].stop()
-        with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as inject:
-            inject.bind(('127.0.0.1',29001))
-            def source_check():
-                offset=len(nodes[1].lines)
-                inject.sendto(frame(0x0B02,0x0C01,'reject_source'),('127.0.0.1',49001))
-                return nodes[1].wait('源地址校验失败',offset)
-            check('source_binding_across_bluetooth',source_check)
-            def lengths():
-                offset=len(ext_client.lines)
-                for payload in (b'x',frame(0x0A01,0x0C01,'length')[:-1],
-                                frame(0x0A01,0x0C01,'length')+b'extra',b'x'*600):
-                    inject.sendto(payload,('127.0.0.1',49001))
-                end=time.monotonic()+5
-                while time.monotonic()<end:
-                    if sum('本地帧长度非法' in x for x in ext_client.lines[offset:])==4: return '4 malformed datagrams rejected'
-                    time.sleep(.03)
-                raise AssertionError('长度拒绝数不符')
-            check('exact_datagram_length',lengths)
-            def balance():
-                offset=len(nodes[1].lines)
-                for i in range(1,65):
-                    token='flow_%02d'%i
-                    inject.sendto(frame(0x0A00+i,0x0C01,token),('127.0.0.1',49001))
-                    hosts['down5'].wait(token)
-                counts={str(p):sum('出端口%d dst=0x0C01'%p in s for s in nodes[1].lines[offset:]) for p in (1,2)}
-                assert sum(counts.values())==64 and all(counts.values())
-                return {'received':64,'node1_outputs':counts,'hash':'logical source/destination pair, not five-tuple'}
-            check('64_address_flows_udp_and_bluetooth',balance)
-        # 重新打开日志时使用不同名字，保留首轮证据。
-        hosts['upper']=host('upper','upper-reconnected')
-        def local_peer():
-            offset=len(ext_client.lines)
-            with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as other:
-                other.sendto(frame(0x0A01,0x0C01,'unauthorized_udp'),('127.0.0.1',49001))
-            return ext_client.wait('非配置本地应用端口',offset)
-        check('local_udp_peer_rejected',local_peer)
-        def recovery():
-            offset=len(ext_server.lines)
-            ext_client.stop()
-            ext_server.wait('disconnected',offset)
-            hosts['down5'].send('send 0x0A01 no_replay_while_offline')
-            dropped=ext_server.wait('蓝牙信道未连接',offset)
-            renewed=gateway('external-client-reconnected','connect',b,a,'0x1001',49001,29001)
-            renewed.wait('[BT] connected')
-            hosts['upper'].send('send 0x0C01 after_reconnect')
-            hosts['down5'].wait('after_reconnect')
-            hosts['down5'].send('send 0x0A01 reverse_after_reconnect')
-            hosts['upper'].wait('reverse_after_reconnect')
-            assert not any('no_replay_while_offline' in x for x in hosts['upper'].lines)
-            return {'drop':dropped,'both_directions_recovered':True,'offline_frame_replayed':False}
-        check('disconnect_reconnect',recovery)
+        if hierarchical:
+            from test_hier_bluetooth import exercise
+            nodes = exercise(out, start, check, gateway, ext_server, ext_client)
+        else:
+            nodes = legacy_exercise(out, start, check, gateway, ext_server, ext_client, a, b)
         for n in nodes.values(): n.send('stats')
         for proc in (ext_server,int_server,int_client): os.kill(proc.p.pid,signal.SIGUSR1)
         result['channel_counters']={proc.name:proc.wait('[STATS]') for proc in (ext_server,int_server,int_client)}
@@ -307,5 +226,101 @@ def main():
     return 0 if result['status']=='PASS' else 1
 
 
-if __name__=='__main__':
+def legacy_exercise(out, start, check, gateway, ext_server, ext_client, a, b):
+    configs = make_configs(out)
+    nodes = {i: start('node%d'%i,[ROOT/'bin/switch',configs/('node%d.conf'%i)]) for i in range(1,5)}
+    for i,n in nodes.items(): n.wait('节点%d已启动'%i); n.send('table')
+    host_params = {'upper':('0x0A01',29001,49001), 'down3':('0x0B01',29002,23101),
+                   'down5':('0x0C01',29003,22103)}
+    def host(name, log_name=None):
+        addr,udp,port = host_params[name]
+        h = start(log_name or name,[ROOT/'bin/host',addr,udp,'127.0.0.1',port]); h.wait('已就绪'); return h
+    hosts = {k:host(k) for k in host_params}
+    def connectivity():
+        evidence=[]
+        for source in hosts:
+            for dest in hosts:
+                if source == dest: continue
+                token='bt_%s_to_%s'%(source,dest)
+                hosts[source].send('send %s %s'%(host_params[dest][0],token))
+                evidence.append(hosts[dest].wait(token))
+        return evidence
+    check('three_domain_6_directions',connectivity)
+    def crc():
+        offset=len(nodes[1].lines)
+        hosts['upper'].send('sendbad 0x0C01 reject_bad_crc')
+        evidence=nodes[1].wait('CRC校验失败',offset)
+        time.sleep(.2)
+        assert not any('reject_bad_crc' in x for x in hosts['down5'].lines)
+        return evidence
+    check('bad_crc_across_bluetooth',crc)
+
+    def node_crc():
+        offset=len(hosts['upper'].lines)
+        nodes[1].send('send 0x0A01 node_crc_normal')
+        normal=hosts['upper'].wait('node_crc_normal',offset)
+        nodes[1].send('sendbad 0x0A01 node_crc_rejected')
+        dropped=hosts['upper'].wait('CRC校验失败',offset)
+        assert not any('[RECV]' in s and 'node_crc_rejected' in s for s in hosts['upper'].lines)
+        return {'normal':normal,'corrupted':dropped}
+    check('node_sendbad_across_bluetooth',node_crc)
+
+    hosts['upper'].stop()
+    with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as inject:
+        inject.bind(('127.0.0.1',29001))
+        def source_check():
+            offset=len(nodes[1].lines)
+            inject.sendto(frame(0x0B02,0x0C01,'reject_source'),('127.0.0.1',49001))
+            return nodes[1].wait('源地址校验失败',offset)
+        check('source_binding_across_bluetooth',source_check)
+        def lengths():
+            offset=len(ext_client.lines)
+            for payload in (b'x',frame(0x0A01,0x0C01,'length')[:-1],
+                            frame(0x0A01,0x0C01,'length')+b'extra',b'x'*600):
+                inject.sendto(payload,('127.0.0.1',49001))
+            end=time.monotonic()+5
+            while time.monotonic()<end:
+                if sum('本地帧长度非法' in x for x in ext_client.lines[offset:])==4: return '4 malformed datagrams rejected'
+                time.sleep(.03)
+            raise AssertionError('长度拒绝数不符')
+        check('exact_datagram_length',lengths)
+        def balance():
+            offset=len(nodes[1].lines)
+            for i in range(1,65):
+                token='flow_%02d'%i
+                inject.sendto(frame(0x0A00+i,0x0C01,token),('127.0.0.1',49001))
+                hosts['down5'].wait(token)
+            counts={str(p):sum('出端口%d dst=0x0C01'%p in s for s in nodes[1].lines[offset:]) for p in (1,2)}
+            assert sum(counts.values())==64 and all(counts.values())
+            return {'received':64,'node1_outputs':counts,'hash':'logical source/destination pair, not five-tuple'}
+        check('64_address_flows_udp_and_bluetooth',balance)
+    # 重新打开日志时使用不同名字，保留首轮证据。
+    hosts['upper']=host('upper','upper-reconnected')
+    def local_peer():
+        offset=len(ext_client.lines)
+        with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as other:
+            other.sendto(frame(0x0A01,0x0C01,'unauthorized_udp'),('127.0.0.1',49001))
+        return ext_client.wait('非配置本地应用端口',offset)
+    check('local_udp_peer_rejected',local_peer)
+    def recovery():
+        offset=len(ext_server.lines)
+        ext_client.stop()
+        ext_server.wait('disconnected',offset)
+        nodes[1].send('send 0x0A01 no_replay_while_offline')
+        dropped=ext_server.wait('蓝牙信道未连接',offset)
+        renewed=gateway('external-client-reconnected','connect',b,a,'0x1001',49001,29001)
+        renewed.wait('[BT] connected')
+        hosts['upper'].send('send 0x0C01 after_reconnect')
+        hosts['down5'].wait('after_reconnect')
+        nodes[1].send('send 0x0A01 reverse_after_reconnect')
+        hosts['upper'].wait('reverse_after_reconnect')
+        assert not any('no_replay_while_offline' in x for x in hosts['upper'].lines)
+        return {'drop':dropped,'both_directions_recovered':True,'offline_frame_replayed':False}
+    check('disconnect_reconnect',recovery)
+    nodes[4].send("send 0x0101 internal_reverse_bt")
+    check("internal_bluetooth_reverse", lambda: nodes[1].wait("internal_reverse_bt"))
+    return nodes
+
+
+if __name__=="__main__":
     sys.exit(main())

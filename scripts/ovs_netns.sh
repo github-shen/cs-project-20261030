@@ -7,27 +7,18 @@
 #   把每张 ovsX 放进独立 netns 后，跨节点报文必须经网桥二层转发，n_packets 真实增长。
 #
 # 用法（都要 root）：
-#   sudo bash scripts/ovs_netns.sh setup     建 ns1~4，把 ovs1~4 移进去并配 10.1.0.k/24
+#   sudo bash scripts/ovs_netns.sh setup     建 ns1~4、ns11~13，分别配置 10.1.0.k/24
 #   sudo bash scripts/ovs_netns.sh status    查看每个 ns 的网卡与 IP
 #   sudo bash scripts/ovs_netns.sh teardown  还原：网卡移回、IP 复位、删 ns
 #   sudo bash scripts/ovs_netns.sh verify    独立拓扑自动验收（保存结果，失败非零退出）
-#   sudo bash scripts/ovs_netns.sh demo      一键取证：起 4 节点 + 2 主机、发帧、打印 n_packets 增量
+#   sudo bash scripts/ovs_netns.sh demo      隔离验收：4 节点、3 外部网络及 OVS 计数
 #
-# 手动跑（8 个终端，节点和它的外部主机必须同一个 ns）：
-#   sudo bash scripts/ovs_netns.sh setup
-#   sudo ip netns exec ns1 ./bin/switch config-ovs/node1.conf
-#   sudo ip netns exec ns2 ./bin/switch config-ovs/node2.conf
-#   sudo ip netns exec ns3 ./bin/switch config-ovs/node3.conf
-#   sudo ip netns exec ns4 ./bin/switch config-ovs/node4.conf
-#   sudo ip netns exec ns1 ./bin/host 0x0A01 9001 127.0.0.1 1103
-#   sudo ip netns exec ns2 ./bin/host 0x0B01 9002 127.0.0.1 3104
-#   sudo ip netns exec ns3 ./bin/host 0x0C01 9003 127.0.0.1 2104
-#   sudo ip netns exec ns4 ./bin/host 0x0D01 9004 127.0.0.1 4103
-#   sudo ovs-ofctl dump-flows br-int
+# 手动观察：先 ovs_setup.sh，再 setup，最后 run_tmux.sh config-ovs。
+# ns1～4 为交换节点；ns11～13 为三个共享外部网络。
 set -u
 cd "$(dirname "$0")/.." || exit 1
 
-NETS="1 2 3 4"
+NETS="1 2 3 4 11 12 13"
 
 need_root() {
     [ "$(id -u)" -eq 0 ] || { echo "需要 root: sudo bash scripts/ovs_netns.sh $*" >&2; exit 1; }
@@ -52,7 +43,7 @@ setup_one() {
 }
 
 do_setup() {
-    echo "== 把 ovs1~ovs4 放进独立 netns =="
+    echo "== 把 ovs1~4、ovs11~13 放进独立 netns =="
     for i in $NETS; do setup_one "$i" || return 1; done
     echo
     echo "== 网桥端口 =="
@@ -88,69 +79,8 @@ do_status() {
     ip -4 -br addr | grep -E 'ovs[1-4]' | sed 's/^/  /' || echo "  (无，说明已全部放进 netns)"
 }
 
-# ---------------- 一键取证 ----------------
-W=""
-pids=()
-
-do_demo() {
-    local i
-    W="$(mktemp -d)"
-
-    cleanup() {
-        local p
-        for p in "${pids[@]:-}"; do kill "$p" 2>/dev/null; done
-        for p in "${pids[@]:-}"; do wait "$p" 2>/dev/null || true; done
-        [ -n "$W" ] && echo "日志保留: $W"
-    }
-    trap cleanup EXIT
-    do_setup >/dev/null || { echo "setup 失败"; exit 1; }
-
-    # 后台进程的三条标准流都要重定向，否则会持有调用方的管道，脚本永不返回
-    start_node() {   # $1 = 节点号
-        mkfifo "$W/n$1.in"
-        ( exec sleep 3600 > "$W/n$1.in" 2>/dev/null </dev/null ) & pids+=($!)
-        ip netns exec "ns$1" ./bin/switch "config-ovs/node$1.conf" \
-            < "$W/n$1.in" > "$W/n$1.log" 2>&1 & pids+=($!)
-    }
-    start_host() {   # $1=ns  $2=地址  $3=本地端口  $4=节点外部端口
-        mkfifo "$W/h$2.in"
-        ( exec sleep 3600 > "$W/h$2.in" 2>/dev/null </dev/null ) & pids+=($!)
-        ip netns exec "ns$1" ./bin/host "$2" "$3" 127.0.0.1 "$4" \
-            < "$W/h$2.in" > "$W/h$2.log" 2>&1 & pids+=($!)
-    }
-    send() { timeout 3 bash -c "echo \"$2\" > \"$W/$1.in\"" || echo "  (命令写入超时：对应主机没起来)"; }
-
-    for i in $NETS; do start_node "$i"; done
-    sleep 0.8
-    start_host 1 0x0A01 9001 1103
-    start_host 3 0x0C01 9003 2104
-    sleep 1.5
-
-    echo "== 运行中的进程 =="
-    pgrep -af 'bin/switch config-ovs|bin/host 0x' | sed 's/^/  /'
-
-    echo "== 基线流表 =="
-    ovs-ofctl dump-flows br-int 2>/dev/null | grep 'actions=NORMAL' | sed 's/^/  /'
-
-    echo "== ns1 的主机 0x0A01 发帧给 0x0C01（域内逐跳应全部经过 br-int）=="
-    send "h0x0A01" "send 0x0C01 ovs-netns-test"
-    sleep 1.5
-
-    echo "== 之后流表（n_packets 应增长）=="
-    ovs-ofctl dump-flows br-int 2>/dev/null | grep 'actions=NORMAL' | sed 's/^/  /'
-
-    echo "== 外部主机 0x0C01 是否收到 =="
-    grep -E '^\[RECV' "$W/h0x0C01.log" 2>/dev/null | tail -3 | sed 's/^/  /'
-
-    echo "== 节点1 / 节点2 转发日志 =="
-    grep -hE '^\[(FWD|DROP)' "$W/n1.log" 2>/dev/null | tail -2 | sed 's/^/  n1: /'
-    grep -hE '^\[(FWD|DROP)' "$W/n2.log" 2>/dev/null | tail -2 | sed 's/^/  n2: /'
-
-    if ! grep -q 'ovs-netns-test' "$W/h0x0C01.log"; then
-        echo "FAIL: 目的主机未收到测试消息" >&2; return 1
-    fi
-    echo "PASS: 目的主机收到测试消息；请结合前后流表与抓包核实 OVS 路径"
-}
+# demo 与 verify 共用隔离验收，保留所有节点、信道、接收和流计数日志。
+do_demo() { python3 scripts/ovs_acceptance.py; }
 
 # ---------------- 入口 ----------------
 if [ "${1:-}" = verify ]; then

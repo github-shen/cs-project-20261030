@@ -1,0 +1,45 @@
+{
+  "started_at": "2026-11-05T14:39:07.183471+00:00",
+  "status": "PASS",
+  "media": "two veth paths; physical Ethernet/Wi-Fi NOT VERIFIED",
+  "checks": {
+    "management_interface_guard": {
+      "status": "PASS",
+      "evidence": "default-route interface refused, remained UP"
+    },
+    "hierarchical_dual_interface_6_directions": {
+      "status": "PASS",
+      "evidence": 6
+    },
+    "hierarchical_link_failure_and_restore": {
+      "status": "PASS",
+      "evidence": {
+        "received": {
+          "baseline": [
+            true,
+            true,
+            true
+          ],
+          "down": [
+            true,
+            true,
+            false
+          ],
+          "restored": [
+            true,
+            true,
+            true
+          ]
+        },
+        "preserved_epid": "4/5",
+        "backup": "1p1 -> 2p4, 2p2 -> 4p2",
+        "interface_restored": true
+      }
+    }
+  },
+  "mode": "hierarchical",
+  "cleanup": {
+    "environment_unchanged": true,
+    "private_tmux_stopped": true
+  }
+}

@@ -1,0 +1,6 @@
+主机2001:db8:300::1已就绪
+命令: send <IPv6> <文本> | sendbad <IPv6> <文本> | quit
+[RECV] 来自2001:db9::1: "nic_hA1_hB1"
+[RECV] 来自2001:db8:500::1: "nic_hC1_hB1"
+[RECV] 来自2001:db9::1: "hier_wifi_external_baseline"
+[RECV] 来自2001:db9::1: "hier_wifi_external_restored"

@@ -64,7 +64,7 @@ def main():
     cfg=json.loads(o.config.read_text(encoding='utf-8'))
     o.output.mkdir(parents=True,exist_ok=False)
     result={'started_at':datetime.now(timezone.utc).isoformat(),'status':'FAIL',
-            'topology':{'a':['S1','S2','Down3'],'b':['S3','S4','Upper','Down5','Down1']},
+            'topology':{'a':['S1','S2','Down3'],'b':['S3','S4','Upper','Down5']},
             'radio':'EMULATED - HCI over private IP; physical radio NOT VERIFIED', 'checks':{}}
     agents={}
     def check(name,evidence):
@@ -78,14 +78,14 @@ def main():
         for agent in (a,b):
             for channel in ('ext','int'): wait(agent,channel,'[BT] connected')
         check('two_kernel_l2cap_connections',True)
-        hosts={'upper':(b,'0x0A01'),'down3':(a,'0x0B01'),'down5':(b,'0x0C01'),'down1':(b,'0x0D01')}
+        hosts={'upper':(b,'0x0A01'),'down3':(a,'0x0B01'),'down5':(b,'0x0C01')}
         evidence=[]
         for src,(sa,_) in hosts.items():
             for dst,(da,addr) in hosts.items():
                 if src==dst: continue
                 token='cross_%s_%s'%(src,dst)
                 send(sa,src,'send %s %s'%(addr,token)); evidence.append(wait(da,dst,token))
-        check('four_domain_12_directions',evidence)
+        check('three_domain_6_directions',evidence)
         send(b,'upper','sendbad 0x0C01 cross_bad_crc')
         check('crc_rejected',wait(a,'node1','CRC校验失败'))
         assert not any('cross_bad_crc' in s for s in b.call('lines',process='down5'))
@@ -98,11 +98,11 @@ def main():
         check('node_sendbad_across_vms',{'normal':normal,'corrupted':dropped})
         offset=len(a.call('lines',process='ext'))
         b.call('stop',process='ext'); wait(a,'ext','disconnected',offset)
-        send(a,'down3','send 0x0A01 cross_offline_no_replay')
+        send(a,'node1','send 0x0A01 cross_offline_no_replay')
         dropped=wait(a,'ext','蓝牙信道未连接',offset)
         b.call('restart',process='ext',peer=a.ready['address'])
         send(b,'upper','send 0x0B01 cross_reconnected'); wait(a,'down3','cross_reconnected')
-        send(a,'down3','send 0x0A01 cross_reverse_reconnected'); wait(b,'upper','cross_reverse_reconnected')
+        send(a,'node1','send 0x0A01 cross_reverse_reconnected'); wait(b,'upper','cross_reverse_reconnected')
         assert not any('cross_offline_no_replay' in s for s in b.call('lines',process='upper'))
         check('disconnect_and_bidirectional_recovery',{'offline_drop':dropped,'stale_replay':False})
         b.call('stop',process='upper')

@@ -19,6 +19,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "frame.h"
+#include "hier.h"
 
 static volatile sig_atomic_t stopping, report;
 static unsigned long udp_rx, bt_tx, bt_rx, udp_tx, invalid, denied, offline, errors, connections;
@@ -94,6 +95,8 @@ static int bluetooth_socket(const bdaddr_t *local, int psm, int security)
 static int valid_frame(const unsigned char *buf, ssize_t n)
 {
     Frame f;
+    /* 旧格式的目的地址也可能以 HN 开头，须按完整结构判别。 */
+    if (n >= 46 && hier_wire_length(buf, (size_t)n)) return 1;
     if (n < (ssize_t)FRAME_HDR_SIZE || n > (ssize_t)sizeof(Frame)) return 0;
     memcpy(&f, buf, FRAME_HDR_SIZE);
     return f.len < MAX_PAYLOAD && n == (ssize_t)(FRAME_HDR_SIZE + f.len);
@@ -101,11 +104,11 @@ static int valid_frame(const unsigned char *buf, ssize_t n)
 
 /* 返回正数表示合法帧，0表示已拒绝的数据报，-1保留recvfrom的errno。 */
 static ssize_t receive_local_frame(int udp, const struct sockaddr_in *app,
-                                   unsigned char buf[sizeof(Frame) + 1])
+                                   unsigned char buf[HIER_WIRE_MAX + 1])
 {
     struct sockaddr_in from = {0};
     socklen_t len = sizeof(from);
-    ssize_t n = recvfrom(udp, buf, sizeof(Frame) + 1, MSG_TRUNC,
+    ssize_t n = recvfrom(udp, buf, HIER_WIRE_MAX + 1, MSG_TRUNC,
                          (struct sockaddr *)&from, &len);
     if (n < 0) return -1;
     if (from.sin_addr.s_addr != app->sin_addr.s_addr || from.sin_port != app->sin_port) {
@@ -122,9 +125,9 @@ static int ready(int fd, int udp, const struct sockaddr_in *app)
 {
     struct l2cap_options opts;
     socklen_t len = sizeof(opts);
-    unsigned char pending[sizeof(Frame) + 1];
+    unsigned char pending[HIER_WIRE_MAX + 1];
     if (getsockopt(fd, SOL_L2CAP, L2CAP_OPTIONS, &opts, &len) < 0) return -1;
-    if (opts.omtu < sizeof(Frame) || opts.imtu < sizeof(Frame)) {
+    if (opts.omtu < HIER_WIRE_MAX || opts.imtu < HIER_WIRE_MAX) {
         errno = EMSGSIZE; return -1;
     }
     /* poll可同时报告连接完成和UDP可读。上线前清空内核UDP队列，
@@ -164,7 +167,7 @@ int main(int argc, char **argv)
     int udp = -1, listener = -1, conn = -1, connecting = 0, result = 1;
     const char *security_name;
     long long retry_at = 0, deadline = 0;
-    unsigned char buf[sizeof(Frame) + 1];
+    unsigned char buf[HIER_WIRE_MAX + 1];
 
     if (argc == 2 && strcmp(argv[1], "--help") == 0) { usage(argv[0]); return 0; }
     if (argc < 7 || argc > 8) { usage(argv[0]); return 2; }

@@ -26,6 +26,9 @@
 #include <net/if.h>
 #include <sys/socket.h>
 #include "frame.h"
+#ifdef WITH_HIERARCHICAL
+#include "hier.h"
+#endif
 
 #define MAX_PORTS   8       /* 每个节点最多端口数 */
 #define MAX_IFT     128     /* 内部转发表最大表项数 */
@@ -772,6 +775,10 @@ int main(int argc, char *argv[])
         fprintf(stderr, "用法: %s <配置文件>\n", argv[0]);
         return 1;
     }
+#ifdef WITH_HIERARCHICAL
+    if (hier_config_enabled(argv[1]))
+        return hier_switch_main(argc, argv);
+#endif
     if (load_config(argv[1]) < 0)
         return 1;
     if (validate_config() < 0)

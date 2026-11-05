@@ -1,0 +1,197 @@
+{
+  "status": "PASS",
+  "error": null,
+  "checks": [
+    {
+      "name": "setup_and_ready",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "OVS_business_delivery",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-1-internal"
+    },
+    {
+      "name": "OVS_business_counter",
+      "status": "PASS",
+      "detail": {
+        "before": 0,
+        "after": 2
+      }
+    },
+    {
+      "name": "external_1_to_2",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-2-external"
+    },
+    {
+      "name": "external_1_to_3",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-3-external"
+    },
+    {
+      "name": "external_2_to_1",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-4-external"
+    },
+    {
+      "name": "external_2_to_3",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-5-external"
+    },
+    {
+      "name": "external_3_to_1",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-6-external"
+    },
+    {
+      "name": "external_3_to_2",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-7-external"
+    },
+    {
+      "name": "internal_1_to_2",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-8-internal"
+    },
+    {
+      "name": "internal_1_to_3",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-9-internal"
+    },
+    {
+      "name": "internal_1_to_4",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-10-internal"
+    },
+    {
+      "name": "internal_2_to_1",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-11-internal"
+    },
+    {
+      "name": "internal_2_to_3",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-12-internal"
+    },
+    {
+      "name": "internal_2_to_4",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-13-internal"
+    },
+    {
+      "name": "internal_3_to_1",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-14-internal"
+    },
+    {
+      "name": "internal_3_to_2",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-15-internal"
+    },
+    {
+      "name": "internal_3_to_4",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-16-internal"
+    },
+    {
+      "name": "internal_4_to_1",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-17-internal"
+    },
+    {
+      "name": "internal_4_to_2",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-18-internal"
+    },
+    {
+      "name": "internal_4_to_3",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-19-internal"
+    },
+    {
+      "name": "external_attachment_1_via_1",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-20-external"
+    },
+    {
+      "name": "external_attachment_1_via_3",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-21-external"
+    },
+    {
+      "name": "external_attachment_2_via_2",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-22-external"
+    },
+    {
+      "name": "external_attachment_2_via_4",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-23-external"
+    },
+    {
+      "name": "external_attachment_3_via_3",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-24-external"
+    },
+    {
+      "name": "external_attachment_3_via_4",
+      "status": "PASS",
+      "detail": "ovs-c8d4007b-25-external"
+    },
+    {
+      "name": "reject_crc",
+      "status": "PASS",
+      "detail": {
+        "marker": "ovs-c8d4007b-26-crc",
+        "drop": "CRC校验失败",
+        "negative_window_seconds": 0.5
+      }
+    },
+    {
+      "name": "reject_source",
+      "status": "PASS",
+      "detail": {
+        "marker": "ovs-c8d4007b-28-source",
+        "drop": "源地址校验失败",
+        "negative_window_seconds": 0.5
+      }
+    },
+    {
+      "name": "reject_route",
+      "status": "PASS",
+      "detail": {
+        "marker": "ovs-c8d4007b-30-route",
+        "drop": "无路由",
+        "negative_window_seconds": 0.5
+      }
+    },
+    {
+      "name": "flow_stability_and_two_paths",
+      "status": "PASS",
+      "detail": {
+        "h1": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "h1b": [
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "name": "table_and_stats",
+      "status": "PASS",
+      "detail": "four nodes"
+    }
+  ],
+  "cleanup_errors": [],
+  "bridge": "avc8d4007b",
+  "physical_media_verified": false
+}

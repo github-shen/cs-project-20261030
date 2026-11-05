@@ -21,6 +21,9 @@
 #include <net/if.h>
 #include <sys/socket.h>
 #include "frame.h"
+#ifdef WITH_HIERARCHICAL
+#include "hier.h"
+#endif
 
 static int sockfd;
 static struct sockaddr_in sw;   /* 所连节点外部端口的地址 */
@@ -60,6 +63,10 @@ static void *rx_loop(void *arg)
 
 int main(int argc, char *argv[])
 {
+#ifdef WITH_HIERARCHICAL
+    if (argc > 1 && strchr(argv[1], ':'))
+        return hier_host_main(argc, argv);
+#endif
     pthread_t tid;
     char line[256];
     const char *bind_ip = NULL;

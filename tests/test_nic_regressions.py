@@ -10,6 +10,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 from test_bluetooth import ROOT, environment
@@ -18,6 +19,7 @@ from test_bluetooth import ROOT, environment
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--hierarchical', action='store_true')
     opts = parser.parse_args()
     if os.geteuid() != 0: parser.error('需要root，仅创建和清理本测试的Namespace/veth/tmux')
     out = opts.output.resolve(); out.mkdir(parents=True, exist_ok=False)
@@ -29,7 +31,8 @@ def main():
     namespaces = []; links = []; sessions = []
     ns_a, ns_b = ('cnet-review-%d-%s' % (os.getpid(), side) for side in ('a','b'))
     result = {'started_at':datetime.now(timezone.utc).isoformat(), 'status':'FAIL',
-              'media':'two veth paths; physical Ethernet/Wi-Fi NOT VERIFIED', 'checks':{}}
+              'media':'two veth paths; physical Ethernet/Wi-Fi NOT VERIFIED', 'checks':{},
+              'mode':'hierarchical' if opts.hierarchical else 'legacy'}
     before = environment()
     signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(SystemExit(143)))
 
@@ -40,7 +43,7 @@ def main():
         return p
 
     def ip(ns, *args): return run('ip','-n',ns,*args)
-    def tmux(*args, **kwargs): return run('tmux',*args,**kwargs)
+    def tmux(*args, **kwargs): return run('tmux','-L','cnet',*args,**kwargs)
     def log(name):
         p=out/(name+'.log')
         return p.read_text(errors='replace') if p.exists() else ''
@@ -72,13 +75,22 @@ def main():
     try:
         for name in ('bin','scripts','config-nic'): (fixture/name).mkdir()
         for name in ('switch','host'): shutil.copy2(ROOT/'bin'/name,fixture/'bin'/name)
-        for name in ('demo_nic.sh','link_test.sh'): shutil.copy2(ROOT/'scripts'/name,fixture/'scripts'/name)
+        for name in ('demo_nic.sh','link_test.sh','logs.sh','channel.py','hier_protocol.py'): shutil.copy2(ROOT/'scripts'/name,fixture/'scripts'/name)
         values={'A_ETH':'192.0.2.1','B_ETH':'192.0.2.2','A_WIFI':'198.51.100.1','B_WIFI':'198.51.100.2'}
         for node in range(1,5):
             text=(ROOT/'config-nic-template'/('node%d.conf'%node)).read_text()
             for key,value in values.items(): text=text.replace('@'+key+'@',value)
             text=text.replace('ens33','nrf-eth').replace('ens37','nrf-wifi')
             (fixture/'config-nic'/('node%d.conf'%node)).write_text(text)
+        text=(ROOT/'config-nic-template/channels.json').read_text()
+        for key,value in values.items(): text=text.replace('@'+key+'@',value)
+        (fixture/'config-nic/channels.json').write_text(text)
+        channels=json.loads(text)['channels']
+        config=fixture/'config-nic'
+        if opts.hierarchical:
+            from hier_config import convert
+            config=fixture/'config-hier-nic'
+            channels=convert(fixture/'config-nic',config)['channels']
         (fixture/'config-nic/ips.env').write_text(''.join(k+'='+v+'\n' for k,v in values.items())+
                                                 'ETH_DEV=nrf-eth\nWIFI_DEV=nrf-wifi\n')
         for ns in (ns_a,ns_b):
@@ -104,40 +116,76 @@ def main():
 
         for node in range(1,5):
             start('n%d'%node, ns_a if node<3 else ns_b,
-                  [fixture/'bin/switch',fixture/'config-nic'/('node%d.conf'%node)],'已启动')
-        for name,ns,args in (
-                ('h0x0A01',ns_a,['0x0A01',9001,'127.0.0.1',1103]),
-                ('h0x0A02',ns_a,['0x0A02',9005,'127.0.0.1',1103]),
-                ('h0x0B01',ns_b,['0x0B01',9002,values['A_WIFI'],3104,'bind',values['B_WIFI']]),
-                ('h0x0C01',ns_a,['0x0C01',9003,values['B_ETH'],2104,'bind',values['A_ETH']]),
-                ('h0x0D01',ns_a,['0x0D01',9004,values['B_ETH'],4103,'bind',values['A_ETH']]),
-                ('spoof',ns_a,['0x0C05',9006,'127.0.0.1',1103])):
-            start(name,ns,[fixture/'bin/host']+args,'已就绪')
+                  [fixture/'bin/switch',config/('node%d.conf'%node)],'已启动')
+        for c in channels:
+            ns=ns_a if c['role']=='A' else ns_b
+            start(c.get('session','ch'+c['network'][2:]),ns,[sys.executable,fixture/'scripts/channel.py',
+                  config/'channels.json','--network',c['network']],'[READY]')
+            for h in c['hosts']:
+                start(h.get('session','h'+h['address']),ns,[fixture/'bin/host',h['address'],h['peer'][1],
+                      '127.0.0.1',c['listen'][1]],'已就绪')
 
-        # 独立tmux服务器；既执行原演示，也核对真实目的终端的日志。
-        script('demo_nic.sh','A')
-        for host,token,src in (('h0x0C01','nic-eth-1','0x0A02'),('h0x0C01','nic-wifi-1','0x0A01'),
-                               ('h0x0B01','nic-wifi-2','0x0A01'),('h0x0D01','nic-eth-2','0x0A01')):
-            assert any('[RECV]' in line and token in line and src in line for line in log(host).splitlines())
-        outputs=re.findall(r'出端口([12]) dst=0x0C01',log('n1'))
-        assert outputs==['1','2','1','2'], outputs
-        check('demo_nic_source_and_path',{'source_0A02':'port1 / wired path','source_0A01':'port2 / Wi-Fi-labeled path',
-                                          'received':4,'node1_outputs_including_stats':outputs})
-        text=script('link_test.sh',input='YES\n')
-        assert any(s.strip().startswith('[REROUTE] 端口2') for s in text.splitlines()), '演示未显示实际重路由日志'
-        assert any(s.strip().startswith('[DROP] 端口4发送失败') for s in text.splitlines()), '演示未显示单路径丢弃日志'
-        run_id=re.search(r'本次标识：(\d+)',text).group(1)
-        flows=[('h0x0C01','lt-eth-1'),('h0x0C01','lt-wifi-1'),('h0x0B01','lt-wifi-2'),('h0x0D01','lt-eth-2')]
-        observed={}
-        for phase in ('baseline','down','restored'):
-            observed[phase]=[received(host,'%s-%s-%s'%(token,phase,run_id)) for host,token in flows]
-        assert observed=={'baseline':[True]*4,'down':[True,True,False,True],'restored':[True]*4},observed
-        reroutes=[s for s in log('n1').splitlines() if '[REROUTE]' in s and '等价端口1' in s]
-        assert len(reroutes)==1,reroutes
-        assert '端口4发送失败' in log('n2')
-        assert 'UP' in ip(ns_a,'-o','link','show','nrf-wifi').stdout
-        check('link_failure_and_restore',{'flows':['wired C','Wi-Fi primary C','Wi-Fi only B','wired D'],
-                                          'received':observed,'reroute':reroutes,'interface_restored':True})
+        if opts.hierarchical:
+            def send(name,command): tmux('send-keys','-t',name,command,'Enter')
+            def wait(name,text,offset=0):
+                end=time.monotonic()+8
+                while time.monotonic()<end:
+                    if text in log(name)[offset:]: return text
+                    time.sleep(.03)
+                raise AssertionError(name+' missing '+text+'\n'+log(name)[-1800:])
+            addresses={h['session']:h['address'] for c in channels for h in c['hosts']}
+            for src in ('hA1','hB1','hC1'):
+                for dst in ('hA1','hB1','hC1'):
+                    if src==dst: continue
+                    token='nic_'+src+'_'+dst
+                    send(src,'send '+addresses[dst]+' '+token); wait(dst,token)
+            check('hierarchical_dual_interface_6_directions',6)
+            for n in range(1,5):
+                for sid,pid in ((3,3),(4,1)):
+                    offset=len(log('n'+str(n)))
+                    send('n'+str(n),f'ept {sid} {pid} down')
+                    wait('n'+str(n),f'[STATE] EPID={sid}/{pid} down',offset)
+            observed={}
+            for phase in ('baseline','down','restored'):
+                if phase=='down': ip(ns_a,'link','set','nrf-wifi','down')
+                if phase=='restored': ip(ns_a,'link','set','nrf-wifi','up')
+                flows=[('n2','hC1','wired'),('hA1','hC1','wifi_primary'),('hA1','hB1','wifi_external')]
+                for src,dst,label in flows:
+                    token='hier_'+label+'_'+phase
+                    send(src,'send '+addresses[dst]+' '+token)
+                    if phase!='down' or label!='wifi_external': wait(dst,token)
+                time.sleep(.3)
+                observed[phase]=[received(dst,'hier_'+label+'_'+phase) for _,dst,label in flows]
+            assert observed=={'baseline':[True]*3,'down':[True,True,False],'restored':[True]*3},observed
+            assert '[REROUTE] 改走端口1 EPID=4/5' in log('n1')
+            assert '[DROP] 端口1发送失败' in log('n2')
+            check('hierarchical_link_failure_and_restore',{'received':observed,'preserved_epid':'4/5',
+                  'backup':'1p1 -> 2p4, 2p2 -> 4p2','interface_restored':True})
+        else:
+            # 独立tmux服务器；既执行原演示，也核对真实目的终端的日志。
+            script('demo_nic.sh','A')
+            for host,token,src in (('h0x0C01','nic-eth-1','0x0A02'),('h0x0C01','nic-wifi-1','0x0A01'),
+                                   ('h0x0B01','nic-wifi-2','0x0A01')):
+                assert any('[RECV]' in line and token in line and src in line for line in log(host).splitlines())
+            outputs=re.findall(r'出端口([12]) dst=0x0C01',log('n1'))
+            assert outputs==['1','2'], outputs
+            check('demo_nic_source_and_path',{'source_0A02':'port1 / wired path','source_0A01':'port2 / Wi-Fi-labeled path',
+                                              'received':3,'node1_outputs':outputs})
+            text=script('link_test.sh',input='YES\n')
+            assert any(s.strip().startswith('[REROUTE] 端口2') for s in text.splitlines()), '演示未显示实际重路由日志'
+            assert any(s.strip().startswith('[DROP] 端口1发送失败') for s in text.splitlines()), '演示未显示单路径丢弃日志'
+            run_id=re.search(r'本次标识：(\d+)',text).group(1)
+            flows=[('h0x0C01','lt-eth-1'),('h0x0C01','lt-wifi-1'),('h0x0B01','lt-wifi-2')]
+            observed={}
+            for phase in ('baseline','down','restored'):
+                observed[phase]=[received(host,'%s-%s-%s'%(token,phase,run_id)) for host,token in flows]
+            assert observed=={'baseline':[True]*3,'down':[True,True,False],'restored':[True]*3},observed
+            reroutes=[s for s in log('n1').splitlines() if '[REROUTE]' in s and '等价端口1' in s]
+            assert len(reroutes)==1,reroutes
+            assert '端口1发送失败' in log('n2')
+            assert 'UP' in ip(ns_a,'-o','link','show','nrf-wifi').stdout
+            check('link_failure_and_restore',{'flows':['wired C','Wi-Fi primary C','Wi-Fi external B'],
+                                              'received':observed,'reroute':reroutes,'interface_restored':True})
         result['status']='PASS'
     except Exception as error:
         result['error']=str(error); print('FAIL: '+str(error),flush=True)

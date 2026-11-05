@@ -5,8 +5,12 @@ on:
     paths:
       - 'src/**'
       - 'config/**'
+      - 'config-*/**'
       - 'config-bt/**'
       - 'scripts/bluetooth.py'
+      - 'scripts/channel.py'
+      - 'scripts/hier*'
+      - 'scripts/run_lab.py'
       - 'tests/**'
       - 'Makefile'
       - '.github/workflows/core-regressions.yml'
@@ -21,14 +25,24 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libbluetooth-dev python3
+          sudo apt-get install -y build-essential libbluetooth-dev python3 tmux
       - name: Build and validate frame handling
         run: |
           make bluetooth CFLAGS='-Wall -Wextra -Werror -O2'
           python3 -m unittest discover -s tests -p 'test_switch_config.py' -v
           python3 -m unittest discover -s tests -p 'test_bluetooth_config.py' -v
+          python3 -m unittest discover -s tests -p 'test_topology.py' -v
+          python3 -m unittest discover -s tests -p 'test_channel.py' -v
+          python3 -m unittest discover -s tests -p 'test_hier_config.py' -v
+          gcc -Wall -Wextra -Werror -O2 -I src tests/test_hier_wire.c src/hier_wire.c src/frame.c -o bin/test-hier-wire
+          bin/test-hier-wire
+          gcc -Wall -Wextra -Werror -O2 tests/test_bt_frames.c src/hier_wire.c src/frame.c -lbluetooth -o bin/test-bt-frames
+          bin/test-bt-frames
           python3 tests/udp_regression.py -v
           python3 tests/test_switch_regressions.py --output logs/core
+          python3 tests/test_topology_integration.py --output logs/topology
+          python3 tests/test_hier_integration.py --output logs/hierarchical
+          python3 tests/test_launcher.py --output logs/launcher
       - name: Validate concurrent learning
         run: |
           gcc -Wall -Wextra -Werror -O2 -pthread tests/test_learning.c src/frame.c -o bin/test-learning
