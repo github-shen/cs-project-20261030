@@ -8,7 +8,7 @@ main（`9a0d6b6`）与 PR #1～#4 的首轮合并版本已通过本页列出的 
 |---|---|---|
 | [#1 蓝牙](https://github.com/github-shen/cs-project-20261030/pull/1) | `9b05b95` | 保留蓝牙离线队列修复；将 NIC 回归的 tmux 套接字移到独立的短临时目录，避免 Unix 路径长度限制 |
 | [#2 OVS 验收](https://github.com/github-shen/cs-project-20261030/pull/2) | `cd3a5fe` | CI 只发现 `test_ovs_acceptance.py`，避免导入需要可选 Paramiko 的双 VM 协调器 |
-| [#3 OVS 证据](https://github.com/github-shen/cs-project-20261030/pull/3) | `75c0273` | 更正原始 PCAP 的提交状态，并[请作者提供历史原件](https://github.com/github-shen/cs-project-20261030/pull/3#issuecomment-6631364947) |
+| [#3 OVS 证据](https://github.com/github-shen/cs-project-20261030/pull/3) | `75c0273`（首轮） | 更正原始 PCAP 的提交状态并请求历史原件；后续 `fb58aaf` 已补齐，复核记录见文末 |
 | [#4 UDP 长度](https://github.com/github-shen/cs-project-20261030/pull/4) | `a50f65c` | 严格长度检查与现有蓝牙收发兼容，两项专项回归通过，未作多余修改 |
 
 功能源码的集成提交为 `b7a974380bdd19a5fe214e89a73ea10c20367cee`。后续改动是 README、部署说明、结果文件及核心 CI 配置。合并冲突的处理保留了 shell / conf 的 LF 换行，以及 OVS demo 的“只结束自身 PID、wait 回收、保留日志、失败非零退出”行为。
@@ -82,7 +82,7 @@ sudo ip netns exec ns1 tcpdump -Z root -i ovs1 -n -U -w node1.pcap udp
 
 正常运行时目的主机收到消息，demo 返回 0。随后在本次专用 `br-int` 添加 `priority=100,udp,actions=drop`，demo 明确返回 1，输出“目的主机未收到测试消息”。两次均保留日志并结束自身进程。最后执行命名空间和网桥 teardown，环境恢复。
 
-证据：[正常运行](../results/integration-20261104/legacy-success.txt)、[强制丢包](../results/integration-20261104/legacy-forced-drop.txt)、[汇总](../results/integration-20261104/legacy-ovs-summary.json)。本文件是新的集成实验原件；PR #3 历史实验的原始 `node1.pcap` 仍待作者补充。
+证据：[正常运行](../results/integration-20261104/legacy-success.txt)、[强制丢包](../results/integration-20261104/legacy-forced-drop.txt)、[汇总](../results/integration-20261104/legacy-ovs-summary.json)。本文件是新的集成实验原件；PR #3 历史实验的原始 `node1.pcap` 于 2026-11-05 另行补齐，复核记录见文末。
 
 ## 清理与未验证范围
 
@@ -120,3 +120,22 @@ sudo ip netns exec ns1 tcpdump -Z root -i ovs1 -n -U -w node1.pcap udp
 | 学习表 ThreadSanitizer | 编译、执行退出码均为 0 | [system-summary.json](../results/integration-pr5-20261104/system-summary.json) |
 
 核心 CI 增加了 `python3 -m unittest discover -s tests -p 'test_switch_config.py' -v`。其余复现命令与首轮一致；本轮未重复旧 OVS demo、README 交互操作或双 VM 协调。网络、命名空间、网桥及 Bluetooth 服务状态均在测试后恢复，公开汇总只保留状态对比，不包含测试机管理地址。
+
+## 2026-11-05 原始抓包复核
+
+本轮更新检查以 PR #6 的 `44d8ced` 为基线。PR #1、#2、#4、#5 与 main 没有新增提交；PR #3 新增 `fb58aaf`，仅补充历史原始抓包和来源说明，已纳入集成分支。
+
+直接解析 [docs/ovs-evidence/node1.pcap](ovs-evidence/node1.pcap)，并对照既有抓包摘要、OVS 流表和接收日志，结果如下：
+
+| 项目 | 复核结果 |
+|---|---|
+| 文件格式与完整性 | PCAP 2.4，Ethernet，104 字节文件，1 个报文，捕获 / 原始长度均为 64 字节 |
+| 报文时间 | 2026-11-02 17:47:37.336623（香港时间），与原摘要一致 |
+| UDP 端点 | `10.1.0.1:1102` → `10.1.0.3:2002`，载荷 22 字节 |
+| 自定义帧 | `0x0A01` → `0x0C01`，TTL 7，数据长度 14，内容 `ovs-netns-test` |
+| 完整性检查 | IPv4 头校验通过；帧 CRC-16 重新计算为 `0x7F58`，与报文一致 |
+| 历史证据对应 | 专用 UDP 规则记录 1 包 / 64 字节，目的主机日志包含同一源地址和消息 |
+
+抓包接口和命令由作者补充，见[来源说明](ovs-evidence/说明.md)。上述复核确认文件内容与历史记录一致，仍只证明该次单路径实验，不扩大为全拓扑或物理介质验收。
+
+本轮只修改证据、文档和 PCAP 忽略例外，程序、配置、脚本、测试及 CI 定义均未变化；因此未重复运行 Linux 功能回归。此前 `44d8ced` 的 [OVS CI](https://github.com/github-shen/cs-project-20261030/actions/runs/41841797697) 和[核心 CI](https://github.com/github-shen/cs-project-20261030/actions/runs/41841797784) 均通过。
