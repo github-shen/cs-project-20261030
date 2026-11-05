@@ -1,0 +1,12 @@
+ch3: 1 windows (created Thu Nov  5 22:46:43 2026)
+ch5: 1 windows (created Thu Nov  5 22:46:43 2026)
+chUp: 1 windows (created Thu Nov  5 22:46:43 2026)
+hA1: 1 windows (created Thu Nov  5 22:46:43 2026)
+hA2: 1 windows (created Thu Nov  5 22:46:43 2026)
+hB1: 1 windows (created Thu Nov  5 22:46:43 2026)
+hC1: 1 windows (created Thu Nov  5 22:46:43 2026)
+n1: 1 windows (created Thu Nov  5 22:46:43 2026)
+n2: 1 windows (created Thu Nov  5 22:46:43 2026)
+n3: 1 windows (created Thu Nov  5 22:46:43 2026)
+n4: 1 windows (created Thu Nov  5 22:46:43 2026)
+观察: tmux -L cnet attach -t n1；停止: bash scripts/stop_all.sh

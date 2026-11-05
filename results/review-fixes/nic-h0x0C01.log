@@ -1,0 +1,12 @@
+主机0x0C01已就绪, 本地 192.0.2.1:9003, 连接到节点 192.0.2.2:2104
+命令: send <目的地址hex> <内容> | sendbad <目的地址hex> <内容> | quit
+[RECV] 来自0x0A02: "nic-eth-1"
+[RECV] 来自0x0A01: "nic-wifi-1"
+[RECV] 来自0x0A02: "stat-eth"
+[RECV] 来自0x0A01: "stat-wifi"
+[RECV] 来自0x0A02: "lt-eth-1-baseline-4504"
+[RECV] 来自0x0A01: "lt-wifi-1-baseline-4504"
+[RECV] 来自0x0A02: "lt-eth-1-down-4504"
+[RECV] 来自0x0A01: "lt-wifi-1-down-4504"
+[RECV] 来自0x0A02: "lt-eth-1-restored-4504"
+[RECV] 来自0x0A01: "lt-wifi-1-restored-4504"

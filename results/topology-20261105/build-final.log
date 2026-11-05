@@ -1,0 +1,2 @@
+gcc -Wall -Wextra -Werror -O2 -Wextra -o bin/bt-channel src/bt_channel.c src/hier_wire.c src/frame.c -lbluetooth
+Bluetooth legacy HN address, IPv6/EPID lengths, CRC passthrough: PASS

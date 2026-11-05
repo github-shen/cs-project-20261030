@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "checks": {
+    "documented_shell_syntax": "PASS",
+    "eight_sessions_started": "PASS",
+    "host_delivery_node_delivery_crc_and_cli": "PASS"
+  },
+  "cleanup": true
+}

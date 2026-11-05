@@ -1,0 +1,9 @@
+[READY] mode=listen local=00:AA:01:00:00:00 peer=00:AA:01:01:00:01 psm=0x1001 udp=41003 app=21103 security=low
+[DROP] 非配置蓝牙对端或信道已占用
+[BT] connected transport=L2CAP imtu=672 omtu=672
+[BT] disconnected: Connection reset by peer
+[DROP] 蓝牙信道未连接，无缓存
+[BT] connected transport=L2CAP imtu=672 omtu=672
+[STATS] udp_rx=7 bt_tx=6 bt_rx=70 udp_tx=70 invalid=0 denied=1 offline=1 errors=0 connections=2 bt_tx_bytes=154 bt_rx_bytes=1101
+[BT] disconnected: Connection reset by peer
+[STATS] udp_rx=7 bt_tx=6 bt_rx=70 udp_tx=70 invalid=0 denied=1 offline=1 errors=0 connections=2 bt_tx_bytes=154 bt_rx_bytes=1101

@@ -1,0 +1,11 @@
+test_crlf_matches_lf (test_switch_config.SwitchConfig.test_crlf_matches_lf) ... ok
+test_hex_external_network_compatibility (test_switch_config.SwitchConfig.test_hex_external_network_compatibility) ... ok
+test_reject_invalid_integer_values (test_switch_config.SwitchConfig.test_reject_invalid_integer_values) ... ok
+test_reject_invalid_port_fields (test_switch_config.SwitchConfig.test_reject_invalid_port_fields) ... ok
+test_reject_invalid_routes_and_excess_paths (test_switch_config.SwitchConfig.test_reject_invalid_routes_and_excess_paths) ... ok
+test_require_one_node_id (test_switch_config.SwitchConfig.test_require_one_node_id) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.040s
+
+OK

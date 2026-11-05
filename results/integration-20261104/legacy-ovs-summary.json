@@ -1,0 +1,15 @@
+{
+  "started_at": "2026-11-04T13:20:23.470346+00:00",
+  "status": "PASS",
+  "checks": {
+    "delivery_and_original_capture": "PASS",
+    "failure_exit_and_retained_logs": "PASS",
+    "demo_process_cleanup": "PASS"
+  },
+  "capture": {
+    "interface": "ns1/ovs1",
+    "filter": "udp",
+    "command": "ip netns exec ns1 tcpdump -Z root -i ovs1 -n -U -w node1.pcap udp"
+  },
+  "environment_restored": true
+}

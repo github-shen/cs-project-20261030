@@ -1,0 +1,66 @@
+2026-11-02T17:47:33+08:00
+5.15.167.4-microsoft-standard-WSL2
+7cd3adfb-ccd1-41e3-a3ab-da4e9dd5e2bd
+    Bridge br-int
+        datapath_type: netdev
+        Port ovs3
+            Interface ovs3
+                type: internal
+        Port ovs2
+            Interface ovs2
+                type: internal
+        Port br-int
+            Interface br-int
+                type: internal
+        Port ovs4
+            Interface ovs4
+                type: internal
+        Port ovs1
+            Interface ovs1
+                type: internal
+    ovs_version: "2.13.8"
+--- ns1 ---
+  lo               UNKNOWN        127.0.0.1/8 
+  ovs1             UNKNOWN        10.1.0.1/24 
+--- ns2 ---
+  lo               UNKNOWN        127.0.0.1/8 
+  ovs2             UNKNOWN        10.1.0.2/24 
+--- ns3 ---
+  lo               UNKNOWN        127.0.0.1/8 
+  ovs3             UNKNOWN        10.1.0.3/24 
+--- ns4 ---
+  lo               UNKNOWN        127.0.0.1/8 
+  ovs4             UNKNOWN        10.1.0.4/24 
+--- 宿主 ns 里的 10.1.0.x ---
+10.1.0.3 dev ovs1 src 10.1.0.1 uid 0 
+    cache 
+== 运行中的进程 ==
+  1719 ./bin/switch config-ovs/node1.conf
+  1722 ./bin/switch config-ovs/node2.conf
+  1725 ./bin/switch config-ovs/node3.conf
+  1728 ./bin/switch config-ovs/node4.conf
+  1746 ./bin/host 0x0A01 9001 127.0.0.1 1103
+  1749 ./bin/host 0x0C01 9003 127.0.0.1 2104
+== 基线流表 ==
+   cookie=0x0, duration=3.390s, table=0, n_packets=0, n_bytes=0, idle_age=3, priority=100,udp,tp_dst=2002 actions=NORMAL
+   cookie=0x0, duration=3.388s, table=0, n_packets=0, n_bytes=0, idle_age=3, priority=100,udp,tp_dst=1102 actions=NORMAL
+   cookie=0x0, duration=78.051s, table=0, n_packets=45, n_bytes=3512, idle_age=12, priority=0 actions=NORMAL
+== ns1 的主机 0x0A01 发帧给 0x0C01（域内逐跳应全部经过 br-int）==
+== 之后流表（n_packets 应增长）==
+   cookie=0x0, duration=4.902s, table=0, n_packets=1, n_bytes=64, idle_age=1, priority=100,udp,tp_dst=2002 actions=NORMAL
+   cookie=0x0, duration=4.900s, table=0, n_packets=0, n_bytes=0, idle_age=4, priority=100,udp,tp_dst=1102 actions=NORMAL
+   cookie=0x0, duration=79.563s, table=0, n_packets=45, n_bytes=3512, idle_age=14, priority=0 actions=NORMAL
+== 外部主机 0x0C01 是否收到 ==
+  [RECV] 来自0x0A01: "ovs-netns-test"
+== 节点1 / 节点2 转发日志 ==
+  n1: [FWD]  内部转发(跨域途中): 入端口3 -> 出端口2 dst=0x0C01 [等价路径]
+PASS: 目的主机收到测试消息；请结合前后流表与抓包核实 OVS 路径
+日志保留: /tmp/tmp.ZdSWYj8GB4
+NXST_FLOW reply (xid=0x4):
+ cookie=0x0, duration=4.913s, table=0, n_packets=1, n_bytes=64, idle_age=1, priority=100,udp,tp_dst=2002 actions=NORMAL
+ cookie=0x0, duration=4.911s, table=0, n_packets=0, n_bytes=0, idle_age=4, priority=100,udp,tp_dst=1102 actions=NORMAL
+ cookie=0x0, duration=79.574s, table=0, n_packets=45, n_bytes=3512, idle_age=14, priority=0 actions=NORMAL
+ cookie=0x0, duration=4.913s, table=0, n_packets=1, n_bytes=64, idle_age=1, priority=100,udp,tp_dst=2002 actions=NORMAL
+reading from file /mnt/c/Users/24085/Documents/Codex/2026-11-02/https-github-com-github-shen-cs/outputs/ovs-evidence/node1.pcap, link-type EN10MB (Ethernet)
+17:47:37.336623 IP 10.1.0.1.1102 > 10.1.0.3.2002: UDP, length 22
+PASS: application delivery, UDP-specific OVS counter and interface capture verified.

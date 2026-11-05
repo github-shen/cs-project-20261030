@@ -1,0 +1,4 @@
+mkdir -p bin
+gcc -Wall -Wextra -Werror -O2 -o bin/switch src/switch.c src/frame.c -lpthread
+gcc -Wall -Wextra -Werror -O2 -o bin/host src/host.c src/frame.c -lpthread
+gcc -Wall -Wextra -Werror -O2 -Wextra -o bin/bt-channel src/bt_channel.c -lbluetooth

@@ -26,6 +26,9 @@
 #include <net/if.h>
 #include <sys/socket.h>
 #include "frame.h"
+#ifdef WITH_HIERARCHICAL
+#include "hier.h"
+#endif
 
 #define MAX_PORTS   8       /* 每个节点最多端口数 */
 #define MAX_IFT     128     /* 内部转发表最大表项数 */
@@ -55,6 +58,7 @@ typedef struct {
     LearnEntry learn[MAX_LEARN]; /* 外部端口源地址学习表 */
     int      nlearn;
     int      learn_rr;           /* 学习表轮转替换指针 */
+    pthread_mutex_t learn_lock;  /* 同一端口的学习、回程查找和CLI快照共享 */
 } Port;
 
 /* ---------------- 内部转发表项 ---------------- */
@@ -69,6 +73,7 @@ static int      nports = 0;
 static IftEntry ift[MAX_IFT];
 static int      nift = 0;
 static int      myid;
+static int      have_id;
 static uint16_t myaddr;
 
 /* 统计计数（多线程并发热点，用原子加减，避免丢更新） */
@@ -80,6 +85,23 @@ static unsigned long st_rx, st_tx, st_crc_err, st_src_err, st_noroute,
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* ---------------- 工具函数 ---------------- */
+
+/* 严格解析整数：拒绝空字符串、尾随字符、溢出和越界值。 */
+static int parse_uint(const char *s, int base, unsigned long min,
+                      unsigned long max, unsigned long *out)
+{
+    char *end = NULL;
+    unsigned long value;
+
+    if (!s || !*s || *s == '-' || !out)
+        return -1;
+    errno = 0;
+    value = strtoul(s, &end, base);
+    if (errno == ERANGE || end == s || *end != '\0' || value < min || value > max)
+        return -1;
+    *out = value;
+    return 0;
+}
 
 static Port *find_port(int id)
 {
@@ -100,14 +122,9 @@ static Port *ept_lookup(uint8_t net)
     return NULL;
 }
 
-/* 流哈希：FNV-1a over (src, dst) 四个字节
- *
- * 为什么不用 (src^dst)：
- *   1) 对称性差：XOR 对 (a,b) 与 (b,a) 结果相同，双向业务会被绑到同一条路径；
- *   2) 分布差：地址相邻时低位高度相关，n=2 时几乎就是"看最低位"，容易一半流挤一条路；
- *   3) 换一台主机/换一个地址段，映射关系整体平移，不利于"同流不乱序"的稳定性。
- * FNV-1a 只需要 4 次乘法，无查表、无状态，同一 (src,dst) 恒定得到同一结果（流不乱序），
- * 不同流均匀散开；n 个等价端口取 h % n。
+/* 流哈希：依次混合src高/低字节、dst高/低字节，使用FNV-1a。
+ * 无查表、无状态；相同地址对及端口配置得到相同首选索引h % n。
+ * 分布取决于地址集合，取模不保证绝对均匀；故障换路时仍可能乱序。
  */
 static unsigned flow_hash(uint16_t src, uint16_t dst)
 {
@@ -147,9 +164,11 @@ static void learn_add(Port *p, uint16_t addr, const struct sockaddr_in *from)
 {
     int i;
 
+    pthread_mutex_lock(&p->learn_lock);
     for (i = 0; i < p->nlearn; i++) {
         if (p->learn[i].addr == addr) {
             p->learn[i].sa = *from;
+            pthread_mutex_unlock(&p->learn_lock);
             return;
         }
     }
@@ -161,15 +180,33 @@ static void learn_add(Port *p, uint16_t addr, const struct sockaddr_in *from)
     }
     p->learn[i].addr = addr;
     p->learn[i].sa = *from;
+    pthread_mutex_unlock(&p->learn_lock);
 }
 
-static const struct sockaddr_in *learn_find(Port *p, uint16_t addr)
+/* 锁内复制到调用者存储；不能把共享表项指针带出锁交给sendto。 */
+static int learn_find(Port *p, uint16_t addr, struct sockaddr_in *out)
 {
-    int i;
-    for (i = 0; i < p->nlearn; i++)
-        if (p->learn[i].addr == addr)
-            return &p->learn[i].sa;
-    return NULL;
+    int i, found = 0;
+    pthread_mutex_lock(&p->learn_lock);
+    for (i = 0; i < p->nlearn; i++) {
+        if (p->learn[i].addr == addr) {
+            *out = p->learn[i].sa;
+            found = 1;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&p->learn_lock);
+    return found;
+}
+
+static int learn_snapshot(Port *p, LearnEntry out[MAX_LEARN])
+{
+    int count;
+    pthread_mutex_lock(&p->learn_lock);
+    count = p->nlearn;
+    memcpy(out, p->learn, (size_t)count * sizeof(*out));
+    pthread_mutex_unlock(&p->learn_lock);
+    return count;
 }
 
 static void log_line(const char *fmt, ...)
@@ -190,12 +227,14 @@ static void log_line(const char *fmt, ...)
  * 外部端口优先用“学到的站点地址”回送（同一信道可挂多台主机），
  * 没学到才退回配置里的 peer。
  * 返回 0 成功，-1 失败（调用方可以改走等价端口）。 */
-static int port_send(Port *p, Frame *f)
+static int port_send(Port *p, Frame *f, int corrupt_crc)
 {
     const struct sockaddr_in *dst = NULL;
+    struct sockaddr_in learned_dst;
 
     if (p->is_ext) {
-        dst = learn_find(p, f->dst);
+        if (learn_find(p, f->dst, &learned_dst))
+            dst = &learned_dst;
         if (!dst && p->has_peer) {
             dst = &p->peer;
             ST_INC(st_nolearn);
@@ -216,6 +255,9 @@ static int port_send(Port *p, Frame *f)
     /* ttl 属于 CRC 覆盖范围，改了就必须重新封 CRC，否则下一跳校验必然失败 */
     f->ttl--;
     frame_seal(f);
+    /* sendbad是本机故障注入：在最终TTL/CRC更新后破坏，正常转发不受影响。 */
+    if (corrupt_crc)
+        f->crc ^= 0x0001;
 
     if (sendto(p->sock, f, frame_wire_size(f), 0,
                (struct sockaddr *)dst, sizeof(*dst)) < 0) {
@@ -229,9 +271,9 @@ static int port_send(Port *p, Frame *f)
 
 /* 按"等价端口组"转发：
  *   首选 = flow_hash(src,dst) % n；发送失败时依次改走其它等价端口。
- * 这就是转发面的"本地保护 / 快速重路由"——等价路径里断一条，业务不被丢，
- * 不需要控制面重新收敛（静态表也能扛单链路故障）。 */
-static int forward_equiv(IftEntry *e, Frame *f, const char *from, int cross)
+ * 仅当本地sendto明确报错时尝试备用端口；UDP发送成功不证明远端已收到，
+ * 因此不具备远端断电、黑洞等静默故障的自动探测能力。 */
+static int forward_equiv(IftEntry *e, Frame *f, const char *from, int cross, int corrupt_crc)
 {
     Frame orig = *f;
     int start = flow_index(e, f->src, f->dst);
@@ -247,20 +289,23 @@ static int forward_equiv(IftEntry *e, Frame *f, const char *from, int cross)
             log_line("[FWD]  %s: %s -> 出端口%d dst=0x%04X%s",
                      cross ? "内部转发(跨域途中)" : "内部转发", from, pid, f->dst,
                      e->n > 1 ? " [等价路径]" : "");
-        } else {
-            ST_INC(st_failover);
-            log_line("[REROUTE] 端口%d 不可用，改走等价端口%d dst=0x%04X",
-                     e->port[(start + k - 1) % e->n], pid, f->dst);
         }
-        if (port_send(p, f) == 0)
+        if (port_send(p, f, corrupt_crc) == 0) {
+            /* 只有备用端口实际提交成功才计重路由；仍不代表远端业务已收到。 */
+            if (k > 0) {
+                ST_INC(st_failover);
+                log_line("[REROUTE] 端口%d 不可用，改走等价端口%d dst=0x%04X",
+                         e->port[start], pid, f->dst);
+            }
             return 0;
+        }
         *f = orig;      /* 换端口重试前恢复 ttl 与 CRC，避免多减一次 */
     }
     return -1;
 }
 
 /* 帧的路由决策。in_port = -1 表示本节点自己产生的帧 */
-static void route_frame(Frame *f, int in_port)
+static void route_frame(Frame *f, int in_port, int corrupt_crc)
 {
     uint8_t net  = (uint8_t)(f->dst >> 8);
     uint8_t node = (uint8_t)(f->dst & 0xFF);
@@ -276,6 +321,13 @@ static void route_frame(Frame *f, int in_port)
     /* 1) 目的在本节点域内 */
     if (net == NET_LOCAL) {
         if (node == myid) {                 /* 就是发给本节点的，交付 */
+            if (corrupt_crc)
+                f->crc ^= 0x0001;
+            if (f->len >= MAX_PAYLOAD || !frame_verify(f)) {
+                ST_INC(st_crc_err);
+                log_line("[DROP] CRC校验失败 (本地交付)");
+                return;
+            }
             ST_INC(st_deliver);
             log_line("[RECV] 交付本节点: src=0x%04X 内容=\"%s\"", f->src, f->payload);
             return;
@@ -283,7 +335,7 @@ static void route_frame(Frame *f, int in_port)
         e = ift_find(f->dst);               /* 内部转发表按完整目的地址查 */
         if (e == NULL)
             goto no_route;
-        if (forward_equiv(e, f, from, 0) < 0)
+        if (forward_equiv(e, f, from, 0, corrupt_crc) < 0)
             goto no_route;
         return;
     }
@@ -293,7 +345,7 @@ static void route_frame(Frame *f, int in_port)
     if (p != NULL) {
         log_line("[FWD]  外部转发: %s -> 外部端口%d(网络0x%02X/%s) dst=0x%04X",
                  from, p->id, net, p->link, f->dst);
-        port_send(p, f);
+        port_send(p, f, corrupt_crc);
         return;
     }
 
@@ -301,7 +353,7 @@ static void route_frame(Frame *f, int in_port)
     e = ift_find((uint16_t)(net << 8));
     if (e == NULL)
         goto no_route;
-    if (forward_equiv(e, f, from, 1) < 0)
+    if (forward_equiv(e, f, from, 1, corrupt_crc) < 0)
         goto no_route;
     return;
 
@@ -330,7 +382,9 @@ static void *rx_loop(void *arg)
 
         /* 实收字节必须够 帧头 + len，否则说明报文被截断；
          * len 必须 < MAX_PAYLOAD，给下面的 '\0' 留一个字节，避免写越界 */
-        if ((size_t)n < (size_t)FRAME_HDR_SIZE + (size_t)f.len ||
+        /* Legal frames are smaller than sizeof(f) because len < MAX_PAYLOAD.
+         * A datagram truncated to sizeof(f) therefore cannot pass equality. */
+        if ((size_t)n != (size_t)FRAME_HDR_SIZE + (size_t)f.len ||
             f.len >= MAX_PAYLOAD) {
             ST_INC(st_crc_err);
             log_line("[DROP] 帧长度非法或截断 (端口%d, 收到%ld字节, len=%u)",
@@ -355,7 +409,7 @@ static void *rx_loop(void *arg)
             learn_add(p, f.src, &from);
 
         f.payload[f.len] = '\0';            /* 长度已校验，此处一定在缓冲区内 */
-        route_frame(&f, p->id);
+        route_frame(&f, p->id, 0);
     }
     return NULL;
 }
@@ -373,62 +427,111 @@ static int load_config(const char *path)
     }
     while (fgets(line, sizeof(line), fp)) {
         char *save = NULL, *tok, *hash = strchr(line, '#');
+        unsigned long value;
         if (hash) *hash = '\0';
-        tok = strtok_r(line, " \t\n", &save);
+        tok = strtok_r(line, " \t\r\n", &save);
         if (!tok)
             continue;
 
         if (strcmp(tok, "id") == 0) {
-            char *sid = strtok_r(NULL, " \t\n", &save);
-            if (sid) myid = atoi(sid);
+            char *sid = strtok_r(NULL, " \t\r\n", &save);
+            if (parse_uint(sid, 10, 1, 255, &value) < 0) {
+                fprintf(stderr, "配置错误: id 必须是 1..255 的整数\n");
+                fclose(fp);
+                return -1;
+            }
+            if (have_id) {
+                fprintf(stderr, "配置错误: id 只能出现一次\n");
+                fclose(fp);
+                return -1;
+            }
+            myid = (int)value;
+            have_id = 1;
         } else if (strcmp(tok, "port") == 0) {
             /* port <端口号> <int|ext> [外部网络号] <本地UDP> <对端IP> <对端UDP>
              *      [bind <本地IP>] [dev <网卡>] [type <eth|wifi|bt>] */
             char *sid, *stype, *snet = NULL, *sludp, *sip, *sudp, *opt, *val;
             Port *p;
 
-            sid   = strtok_r(NULL, " \t\n", &save);
-            stype = strtok_r(NULL, " \t\n", &save);
-            if (!sid || !stype) continue;
+            sid   = strtok_r(NULL, " \t\r\n", &save);
+            stype = strtok_r(NULL, " \t\r\n", &save);
+            if (!sid || !stype || (strcmp(stype, "int") != 0 && strcmp(stype, "ext") != 0)) {
+                fprintf(stderr, "配置错误: port 行缺少参数或类型不是 int/ext\n");
+                fclose(fp);
+                return -1;
+            }
             if (nports >= MAX_PORTS) {
                 fprintf(stderr, "端口数超过上限 %d\n", MAX_PORTS);
                 return -1;
             }
-            p = &ports[nports++];
+            if (parse_uint(sid, 10, 1, 255, &value) < 0) {
+                fprintf(stderr, "配置错误: 非法端口号 '%s'\n", sid);
+                fclose(fp);
+                return -1;
+            }
+            p = &ports[nports];
             memset(p, 0, sizeof(*p));
-            p->id = atoi(sid);
+            p->id = (int)value;
+            nports++;
             p->is_ext = (strcmp(stype, "ext") == 0);
             if (p->is_ext) {
-                snet = strtok_r(NULL, " \t\n", &save);
-                if (!snet) continue;
-                p->ext_net = (uint8_t)strtoul(snet, NULL, 16);
+                snet = strtok_r(NULL, " \t\r\n", &save);
+                /* 网络号沿用十六进制，兼容 0A、0x0A 及无前缀的 10。 */
+                if (parse_uint(snet, 16, 0, 255, &value) < 0) {
+                    fprintf(stderr, "配置错误: 端口%d 外部网络号非法\n", p->id);
+                    fclose(fp);
+                    return -1;
+                }
+                p->ext_net = (uint8_t)value;
                 snprintf(p->link, sizeof(p->link), "ext");
             } else {
                 snprintf(p->link, sizeof(p->link), "int");
             }
-            sludp = strtok_r(NULL, " \t\n", &save);
-            sip   = strtok_r(NULL, " \t\n", &save);
-            sudp  = strtok_r(NULL, " \t\n", &save);
+            sludp = strtok_r(NULL, " \t\r\n", &save);
+            sip   = strtok_r(NULL, " \t\r\n", &save);
+            sudp  = strtok_r(NULL, " \t\r\n", &save);
             if (!sludp || !sip || !sudp) {
                 fprintf(stderr, "port 行参数不完整: %s\n", line);
                 return -1;
             }
-            p->lport = (uint16_t)atoi(sludp);
+            if (parse_uint(sludp, 10, 1, 65535, &value) < 0) {
+                fprintf(stderr, "配置错误: 端口%d 本地 UDP 端口非法: %s\n", p->id, sludp);
+                fclose(fp);
+                return -1;
+            }
+            p->lport = (uint16_t)value;
+            if (strcmp(sip, "-") != 0 && parse_uint(sudp, 10, 1, 65535, &value) < 0) {
+                fprintf(stderr, "配置错误: 端口%d 对端 UDP 端口非法: %s\n", p->id, sudp ? sudp : "(空)");
+                fclose(fp);
+                return -1;
+            }
             snprintf(p->peer_ip, sizeof(p->peer_ip), "%s", sip);
 
             /* 可选属性：bind / dev / type */
-            for (opt = strtok_r(NULL, " \t\n", &save); opt;
-                 opt = strtok_r(NULL, " \t\n", &save)) {
-                val = strtok_r(NULL, " \t\n", &save);
-                if (!val) break;
+            for (opt = strtok_r(NULL, " \t\r\n", &save); opt;
+                 opt = strtok_r(NULL, " \t\r\n", &save)) {
+                val = strtok_r(NULL, " \t\r\n", &save);
+                if (!val) {
+                    fprintf(stderr, "配置错误: 端口%d 属性 %s 缺少值\n", p->id, opt);
+                    fclose(fp);
+                    return -1;
+                }
                 if (strcmp(opt, "bind") == 0) {
                     snprintf(p->bind_ip, sizeof(p->bind_ip), "%s", val);
                 } else if (strcmp(opt, "dev") == 0) {
                     snprintf(p->dev, sizeof(p->dev), "%s", val);
                 } else if (strcmp(opt, "type") == 0) {
+                    if (strcmp(val, "eth") != 0 && strcmp(val, "wifi") != 0 &&
+                        strcmp(val, "bt") != 0 && strcmp(val, "int") != 0) {
+                        fprintf(stderr, "配置错误: 端口%d 信道类型非法: %s\n", p->id, val);
+                        fclose(fp);
+                        return -1;
+                    }
                     snprintf(p->link, sizeof(p->link), "%s", val);
                 } else {
-                    fprintf(stderr, "未知端口属性: %s\n", opt);
+                    fprintf(stderr, "配置错误: 未知端口属性: %s\n", opt);
+                    fclose(fp);
+                    return -1;
                 }
             }
 
@@ -440,7 +543,11 @@ static int load_config(const char *path)
             {
                 int on = 1;
                 struct sockaddr_in local;
-                setsockopt(p->sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+                if (setsockopt(p->sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+                    fprintf(stderr, "设置 SO_REUSEADDR 失败: %s\n", strerror(errno));
+                    fclose(fp);
+                    return -1;
+                }
                 if (p->dev[0]) {
 #ifdef SO_BINDTODEVICE
                     if (setsockopt(p->sock, SOL_SOCKET, SO_BINDTODEVICE,
@@ -472,37 +579,54 @@ static int load_config(const char *path)
             if (strcmp(sip, "-") != 0) {
                 memset(&p->peer, 0, sizeof(p->peer));
                 p->peer.sin_family = AF_INET;
-                p->peer.sin_port = htons((uint16_t)atoi(sudp));
+                p->peer.sin_port = htons((uint16_t)value);
                 if (inet_pton(AF_INET, sip, &p->peer.sin_addr) != 1) {
-                    if (p->is_ext) {
-                        fprintf(stderr, "[警告] 端口%d 对端IP非法: %s\n", p->id, sip);
-                    } else {
-                        fprintf(stderr, "端口%d 对端IP非法: %s\n", p->id, sip);
-                        return -1;
-                    }
+                    fprintf(stderr, "配置错误: 端口%d 对端IP非法: %s\n", p->id, sip);
+                    fclose(fp);
+                    return -1;
                 } else {
                     p->has_peer = 1;
                 }
             }
         } else if (strcmp(tok, "ift") == 0) {
             /* ift <目的键(hex)> <端口1[,端口2...]> */
-            char *skey = strtok_r(NULL, " \t\n", &save);
-            char *slist = strtok_r(NULL, " \t\n", &save);
+            char *skey = strtok_r(NULL, " \t\r\n", &save);
+            char *slist = strtok_r(NULL, " \t\r\n", &save);
             IftEntry *e;
             char *lsave = NULL, *pt;
-            if (!skey || !slist) continue;
-            if (nift >= MAX_IFT) {
-                fprintf(stderr, "转发表项超过上限 %d\n", MAX_IFT);
+            if (!skey || !slist || parse_uint(skey, 16, 0, 65535, &value) < 0) {
+                fprintf(stderr, "配置错误: ift 行目的键非法\n");
+                fclose(fp);
                 return -1;
             }
-            e = &ift[nift++];
-            e->key = (uint16_t)strtoul(skey, NULL, 16);
+            if (nift >= MAX_IFT) {
+                fprintf(stderr, "转发表项超过上限 %d\n", MAX_IFT);
+                fclose(fp);
+                return -1;
+            }
+            e = &ift[nift];
+            e->key = (uint16_t)value;
             e->n = 0;
-            for (pt = strtok_r(slist, ",", &lsave);
-                 pt && e->n < MAX_LB;
-                 pt = strtok_r(NULL, ",", &lsave))
-                e->port[e->n++] = atoi(pt);
-            if (e->n == 0) e->n = 1;   /* 兜底：至少一个端口 */
+            for (pt = strtok_r(slist, ",", &lsave); pt;
+                 pt = strtok_r(NULL, ",", &lsave)) {
+                if (e->n >= MAX_LB) {
+                    fprintf(stderr, "配置错误: ift 0x%04X 等价端口超过上限 %d\n", e->key, MAX_LB);
+                    fclose(fp);
+                    return -1;
+                }
+                if (parse_uint(pt, 10, 1, 255, &value) < 0) {
+                    fprintf(stderr, "配置错误: ift 0x%04X 含非法端口号 '%s'\n", e->key, pt);
+                    fclose(fp);
+                    return -1;
+                }
+                e->port[e->n++] = (int)value;
+            }
+            if (e->n == 0) {
+                fprintf(stderr, "配置错误: ift 0x%04X 没有指定端口\n", e->key);
+                fclose(fp);
+                return -1;
+            }
+            nift++;
         }
     }
     fclose(fp);
@@ -514,6 +638,10 @@ static int validate_config(void)
 {
     int i, j, k, bad = 0;
 
+    if (!have_id || myid < 1 || myid > 255) {
+        fprintf(stderr, "配置错误: 缺少有效的 id（1..255）\n");
+        return -1;
+    }
     if (nports == 0) {
         fprintf(stderr, "配置错误: 没有任何端口\n");
         return -1;
@@ -560,6 +688,13 @@ static int validate_config(void)
 static void print_tables(void)
 {
     int i, j;
+    LearnEntry learned[MAX_PORTS][MAX_LEARN];
+    int counts[MAX_PORTS] = {0};
+
+    /* 每端口一次快照：数量和表项属于同一时刻，打印期间不持学习表锁。 */
+    for (i = 0; i < nports; i++)
+        if (ports[i].is_ext)
+            counts[i] = learn_snapshot(&ports[i], learned[i]);
 
     printf("==== 外部端口表 (节点%d) ====\n", myid);
     printf("  网络号  端口  信道   本地绑定            学到主机\n");
@@ -568,7 +703,7 @@ static void print_tables(void)
             continue;
         printf("  0x%02X    %d     %-5s  %-18s  %d\n",
                ports[i].ext_net, ports[i].id, ports[i].link,
-               ports[i].bind_ip[0] ? ports[i].bind_ip : "0.0.0.0(all)", ports[i].nlearn);
+               ports[i].bind_ip[0] ? ports[i].bind_ip : "0.0.0.0(all)", counts[i]);
     }
 
     printf("==== 内部转发表 ====\n");
@@ -582,14 +717,14 @@ static void print_tables(void)
 
     for (i = 0; i < nports; i++) {
         int k;
-        if (!ports[i].is_ext || ports[i].nlearn == 0)
+        if (!ports[i].is_ext || counts[i] == 0)
             continue;
         printf("==== 端口%d 学到的外部主机 ====\n", ports[i].id);
-        for (k = 0; k < ports[i].nlearn; k++) {
+        for (k = 0; k < counts[i]; k++) {
             char ip[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &ports[i].learn[k].sa.sin_addr, ip, sizeof(ip));
-            printf("  0x%04X -> %s:%u\n", ports[i].learn[k].addr, ip,
-                   ntohs(ports[i].learn[k].sa.sin_port));
+            inet_ntop(AF_INET, &learned[i][k].sa.sin_addr, ip, sizeof(ip));
+            printf("  0x%04X -> %s:%u\n", learned[i][k].addr, ip,
+                   ntohs(learned[i][k].sa.sin_port));
         }
     }
 }
@@ -611,8 +746,12 @@ static void print_stats(void)
 
 static void reset_stats(void)
 {
-    st_rx = st_tx = st_crc_err = st_src_err = st_noroute = 0;
-    st_ttl_drop = st_deliver = st_nolearn = st_senderr = st_failover = 0;
+    /* reset也可能与收包并发，不能混用普通写与原子增减。各计数独立清零。 */
+    unsigned long *counters[] = {&st_rx, &st_tx, &st_crc_err, &st_src_err, &st_noroute,
+                                &st_ttl_drop, &st_deliver, &st_nolearn, &st_senderr, &st_failover};
+    size_t i;
+    for (i = 0; i < sizeof(counters) / sizeof(*counters); i++)
+        __atomic_store_n(counters[i], 0UL, __ATOMIC_RELAXED);
     printf("统计计数已清零\n");
 }
 
@@ -636,11 +775,24 @@ int main(int argc, char *argv[])
         fprintf(stderr, "用法: %s <配置文件>\n", argv[0]);
         return 1;
     }
+#ifdef WITH_HIERARCHICAL
+    if (hier_config_enabled(argv[1]))
+        return hier_switch_main(argc, argv);
+#endif
     if (load_config(argv[1]) < 0)
         return 1;
     if (validate_config() < 0)
         return 1;
     myaddr = (uint16_t)((NET_LOCAL << 8) | myid);
+
+    /* 配置解析的memset结束后、任何接收线程启动前初始化锁。 */
+    for (i = 0; i < nports; i++) {
+        int error = pthread_mutex_init(&ports[i].learn_lock, NULL);
+        if (error != 0) {
+            fprintf(stderr, "学习表锁初始化失败: %s\n", strerror(error));
+            return 1;
+        }
+    }
 
     for (i = 0; i < nports; i++) {
         pthread_t tid;
@@ -695,9 +847,7 @@ int main(int argc, char *argv[])
             while (*data == ' ') data++;   /* 去掉内容前导空格 */
             dst = (uint16_t)strtoul(sdst, NULL, 16);
             frame_fill(&f, dst, myaddr, data);
-            if (strcmp(cmd, "sendbad") == 0)
-                f.crc ^= 0x0001;   /* 故意破坏CRC */
-            route_frame(&f, -1);
+            route_frame(&f, -1, strcmp(cmd, "sendbad") == 0);
         } else {
             printf("未知命令, 输入 help 查看帮助\n");
         }

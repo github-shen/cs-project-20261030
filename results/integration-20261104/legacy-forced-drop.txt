@@ -1,0 +1,17 @@
+== 运行中的进程 ==
+  4641 ./bin/switch config-ovs/node1.conf
+  4644 ./bin/switch config-ovs/node2.conf
+  4654 ./bin/switch config-ovs/node3.conf
+  4657 ./bin/switch config-ovs/node4.conf
+  4668 ./bin/host 0x0A01 9001 127.0.0.1 1103
+  4671 ./bin/host 0x0C01 9003 127.0.0.1 2104
+== 基线流表 ==
+   cookie=0x0, duration=6.588s, table=0, n_packets=31, n_bytes=2492, idle_age=0, priority=0 actions=NORMAL
+== ns1 的主机 0x0A01 发帧给 0x0C01（域内逐跳应全部经过 br-int）==
+== 之后流表（n_packets 应增长）==
+   cookie=0x0, duration=8.097s, table=0, n_packets=31, n_bytes=2492, idle_age=2, priority=0 actions=NORMAL
+== 外部主机 0x0C01 是否收到 ==
+== 节点1 / 节点2 转发日志 ==
+  n1: [FWD]  内部转发(跨域途中): 入端口3 -> 出端口2 dst=0x0C01 [等价路径]
+日志保留: /tmp/tmp.G44S5mKrhi
+FAIL: 目的主机未收到测试消息

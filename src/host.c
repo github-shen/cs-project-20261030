@@ -21,6 +21,9 @@
 #include <net/if.h>
 #include <sys/socket.h>
 #include "frame.h"
+#ifdef WITH_HIERARCHICAL
+#include "hier.h"
+#endif
 
 static int sockfd;
 static struct sockaddr_in sw;   /* 所连节点外部端口的地址 */
@@ -37,7 +40,9 @@ static void *rx_loop(void *arg)
         n = recv(sockfd, &f, sizeof(f), 0);
         if (n < (ssize_t)FRAME_HDR_SIZE)
             continue;
-        if ((size_t)n < (size_t)FRAME_HDR_SIZE + (size_t)f.len || f.len >= MAX_PAYLOAD) {
+        /* Legal frames are smaller than sizeof(f) because len < MAX_PAYLOAD.
+         * A datagram truncated to sizeof(f) therefore cannot pass equality. */
+        if ((size_t)n != (size_t)FRAME_HDR_SIZE + (size_t)f.len || f.len >= MAX_PAYLOAD) {
             printf("[DROP] 帧长度非法或截断\n");
             continue;
         }
@@ -58,6 +63,10 @@ static void *rx_loop(void *arg)
 
 int main(int argc, char *argv[])
 {
+#ifdef WITH_HIERARCHICAL
+    if (argc > 1 && strchr(argv[1], ':'))
+        return hier_host_main(argc, argv);
+#endif
     pthread_t tid;
     char line[256];
     const char *bind_ip = NULL;

@@ -1,0 +1,8 @@
+no server running on /tmp/cnet-launch-3av8xycu/tmux-1000/cnet
+Traceback (most recent call last):
+  File "/home/cnet/network-labs/topology-20261105/scripts/run_lab.py", line 70, in <module>
+    main()
+  File "/home/cnet/network-labs/topology-20261105/scripts/run_lab.py", line 58, in main
+    raise RuntimeError(f'{name} 未就绪；检查端口占用、配置和权限。\n{pane.stdout}{pane.stderr}')
+RuntimeError: n3 未就绪；检查端口占用、配置和权限。
+can't find pane: n3

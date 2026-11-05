@@ -1,0 +1,64 @@
+{
+  "started_at": "2026-11-01T13:07:14.266812+00:00",
+  "status": "PASS",
+  "media": "two veth paths; physical Ethernet/Wi-Fi NOT VERIFIED",
+  "checks": {
+    "management_interface_guard": {
+      "status": "PASS",
+      "evidence": "default-route interface refused, remained UP"
+    },
+    "demo_nic_source_and_path": {
+      "status": "PASS",
+      "evidence": {
+        "source_0A02": "port1 / wired path",
+        "source_0A01": "port2 / Wi-Fi-labeled path",
+        "received": 4,
+        "node1_outputs_including_stats": [
+          "1",
+          "2",
+          "1",
+          "2"
+        ]
+      }
+    },
+    "link_failure_and_restore": {
+      "status": "PASS",
+      "evidence": {
+        "flows": [
+          "wired C",
+          "Wi-Fi primary C",
+          "Wi-Fi only B",
+          "wired D"
+        ],
+        "received": {
+          "baseline": [
+            true,
+            true,
+            true,
+            true
+          ],
+          "down": [
+            true,
+            true,
+            false,
+            true
+          ],
+          "restored": [
+            true,
+            true,
+            true,
+            true
+          ]
+        },
+        "reroute": [
+          "[REROUTE] 端口2 不可用，改走等价端口1 dst=0x0C01"
+        ],
+        "interface_restored": true
+      }
+    }
+  },
+  "cleanup": {
+    "environment_unchanged": true,
+    "private_tmux_stopped": true
+  }
+}

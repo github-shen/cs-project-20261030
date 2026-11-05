@@ -1,0 +1,150 @@
+{
+  "channels": [
+    {
+      "network": "0xFFFF",
+      "name": "upper",
+      "role": "A",
+      "listen": [
+        "127.0.0.1",
+        9101
+      ],
+      "gateway": 1,
+      "uplinks": [
+        {
+          "node": 1,
+          "port": 3,
+          "peer": [
+            "127.0.0.1",
+            1103
+          ]
+        },
+        {
+          "node": 3,
+          "port": 2,
+          "peer": [
+            "127.0.0.1",
+            2102
+          ]
+        }
+      ],
+      "hosts": [
+        {
+          "address": "2001:db9::1",
+          "peer": [
+            "127.0.0.1",
+            9001
+          ],
+          "session": "hA1"
+        },
+        {
+          "address": "2001:db9::2",
+          "peer": [
+            "127.0.0.1",
+            9005
+          ],
+          "session": "hA2"
+        }
+      ],
+      "ab": [
+        32,
+        8
+      ],
+      "domain": "2001:db8::",
+      "session": "chUp"
+    },
+    {
+      "network": "0x0003",
+      "name": "down3",
+      "role": "A",
+      "listen": [
+        "127.0.0.1",
+        9102
+      ],
+      "gateway": 2,
+      "uplinks": [
+        {
+          "node": 2,
+          "port": 1,
+          "peer": [
+            "127.0.0.1",
+            3101
+          ]
+        },
+        {
+          "node": 4,
+          "port": 1,
+          "peer": [
+            "127.0.0.1",
+            4101
+          ]
+        }
+      ],
+      "hosts": [
+        {
+          "address": "2001:db8:300::1",
+          "peer": [
+            "127.0.0.1",
+            9002
+          ],
+          "session": "hB1"
+        }
+      ],
+      "ab": [
+        32,
+        8
+      ],
+      "domain": "2001:db8::",
+      "session": "ch3"
+    },
+    {
+      "network": "0x0005",
+      "name": "down5",
+      "role": "B",
+      "listen": [
+        "127.0.0.1",
+        9103
+      ],
+      "gateway": 3,
+      "uplinks": [
+        {
+          "node": 3,
+          "port": 3,
+          "peer": [
+            "127.0.0.1",
+            2103
+          ]
+        },
+        {
+          "node": 4,
+          "port": 5,
+          "peer": [
+            "127.0.0.1",
+            4105
+          ]
+        }
+      ],
+      "hosts": [
+        {
+          "address": "2001:db8:500::1",
+          "peer": [
+            "127.0.0.1",
+            9003
+          ],
+          "session": "hC1"
+        }
+      ],
+      "ab": [
+        32,
+        8
+      ],
+      "domain": "2001:db8::",
+      "session": "ch5"
+    }
+  ],
+  "node_addresses": {
+    "1": "2001:db8:ff00::1",
+    "2": "2001:db8:ff00::2",
+    "3": "2001:db8:ff00::3",
+    "4": "2001:db8:ff00::4"
+  }
+}

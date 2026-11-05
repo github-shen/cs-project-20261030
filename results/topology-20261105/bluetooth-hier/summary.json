@@ -1,0 +1,117 @@
+{
+  "started_at": "2026-11-05T14:51:30.561008+00:00",
+  "transport": "AF_BLUETOOTH / SOCK_SEQPACKET / BTPROTO_L2CAP",
+  "radio": "EMULATED - physical radio NOT VERIFIED",
+  "checks": {
+    "bluetooth_peer_rejected": {
+      "status": "PASS",
+      "evidence": "[DROP] 非配置蓝牙对端或信道已占用"
+    },
+    "queued_offline_frames_listen": {
+      "status": "PASS",
+      "evidence": {
+        "offline_queued": 4,
+        "replayed": 0,
+        "online_both_directions": true,
+        "counters": "[STATS] udp_rx=6 bt_tx=1 bt_rx=1 udp_tx=1 invalid=1 denied=1 offline=4 errors=0 connections=1 bt_tx_bytes=21 bt_rx_bytes=29"
+      }
+    },
+    "queued_offline_frames_connect": {
+      "status": "PASS",
+      "evidence": {
+        "offline_queued": 4,
+        "replayed": 0,
+        "online_both_directions": true,
+        "counters": "[STATS] udp_rx=6 bt_tx=1 bt_rx=1 udp_tx=1 invalid=1 denied=1 offline=4 errors=0 connections=1 bt_tx_bytes=22 bt_rx_bytes=30"
+      }
+    },
+    "hierarchical_external_6_and_internal_both_directions": {
+      "status": "PASS",
+      "evidence": [
+        "[RECV] 来自2001:db9::1: \"hier_bt_hA1_hB1\"",
+        "[RECV] 来自2001:db9::1: \"hier_bt_hA1_hC1\"",
+        "[RECV] 来自2001:db8:300::1: \"hier_bt_hB1_hA1\"",
+        "[RECV] 来自2001:db8:300::1: \"hier_bt_hB1_hC1\"",
+        "[RECV] 来自2001:db8:500::1: \"hier_bt_hC1_hA1\"",
+        "[RECV] 来自2001:db8:500::1: \"hier_bt_hC1_hB1\"",
+        "[RECV] 交付本节点: src=2001:db8:ff00::1 内容=\"internal_bt_1_4\"",
+        "[RECV] 交付本节点: src=2001:db8:ff00::4 内容=\"internal_bt_4_1\""
+      ]
+    },
+    "maximum_ipv6_and_epid_frames": {
+      "status": "PASS",
+      "evidence": {
+        "external_bytes": 245,
+        "internal_bytes": 249,
+        "delivery": [
+          "[RECV] 来自2001:db9::1: \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"",
+          "[RECV] 来自2001:db8:500::1: \"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\""
+        ]
+      }
+    },
+    "crc_preserved_across_both_l2cap_links": {
+      "status": "PASS",
+      "evidence": {
+        "internal": "[DROP] CRC校验失败",
+        "external": "[DROP] CRC校验失败"
+      }
+    },
+    "hierarchical_exact_lengths": {
+      "status": "PASS",
+      "evidence": "4 malformed IPv6 datagrams rejected"
+    },
+    "ab_source_validation_after_bluetooth": {
+      "status": "PASS",
+      "evidence": "[DROP] 源地址校验失败（前缀 / a/b 字段与入口不符）"
+    },
+    "hierarchical_disconnect_reconnect": {
+      "status": "PASS",
+      "evidence": {
+        "offline_drop": "[DROP] 蓝牙信道未连接，无缓存",
+        "forward": "[RECV] 来自2001:db9::1: \"hier_reconnect_forward\"",
+        "reverse": "[RECV] 来自2001:db8:500::1: \"hier_reconnect_reverse\"",
+        "replayed": false
+      }
+    }
+  },
+  "status": "PASS",
+  "mode": "hierarchical",
+  "controllers": [
+    {
+      "name": "hci0",
+      "address": "00:AA:01:00:00:00",
+      "kind": "virtual",
+      "up": true
+    },
+    {
+      "name": "hci1",
+      "address": "00:AA:01:01:00:01",
+      "kind": "virtual",
+      "up": true
+    },
+    {
+      "name": "hci2",
+      "address": "00:AA:01:02:00:02",
+      "kind": "virtual",
+      "up": true
+    }
+  ],
+  "channel_counters": {
+    "external-server": "[STATS] udp_rx=6 bt_tx=5 bt_rx=5 udp_tx=5 invalid=0 denied=1 offline=1 errors=0 connections=2 bt_tx_bytes=503 bt_rx_bytes=493",
+    "internal-server": "[STATS] udp_rx=3 bt_tx=3 bt_rx=4 udp_tx=4 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=386 bt_rx_bytes=458",
+    "internal-client": "[STATS] udp_rx=4 bt_tx=4 bt_rx=3 udp_tx=3 invalid=0 denied=0 offline=0 errors=0 connections=1 bt_tx_bytes=458 bt_rx_bytes=386"
+  },
+  "node_counters": {
+    "1": "接收=10 发送=12 交付=1 CRC错误=0 源地址错误=1 非法=0 无路由=0 TTL丢弃=0 重路由=0",
+    "2": "接收=5 发送=5 交付=0 CRC错误=0 源地址错误=0 非法=0 无路由=0 TTL丢弃=0 重路由=0",
+    "3": "接收=3 发送=3 交付=0 CRC错误=0 源地址错误=0 非法=0 无路由=0 TTL丢弃=0 重路由=0",
+    "4": "接收=8 发送=7 交付=1 CRC错误=1 源地址错误=0 非法=0 无路由=0 TTL丢弃=0 重路由=0"
+  },
+  "hci_evidence": "btmon captured ACL Data on virtual controller hci0",
+  "cleanup": {
+    "processes_stopped": true,
+    "hci_restored": true,
+    "network_unchanged": true,
+    "bluetooth_service_restored": true
+  }
+}

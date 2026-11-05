@@ -1,0 +1,24 @@
+节点1已启动 a/b=32/8 IPv6 共3个端口
+命令: send <IPv6> <文本> | sendbad <IPv6> <文本> | table | stats | link <PID> up|down | ept <SID> <PID> up|down | quit
+[SELECT] Lport=3 EPID=2/1 a/b=32/8
+[FWD] 内部转发: EPID=2/1 出端口1 dst=2001:db8:300::1
+[SELECT] Lport=5 EPID=3/3 a/b=32/8
+[FWD] 内部转发: EPID=3/3 出端口1 dst=2001:db8:500::1
+[FWD] 外部转发: EPID=1/3 外部端口3(逻辑信道65535) dst=2001:db9::1
+[FWD] 外部转发: EPID=1/3 外部端口3(逻辑信道65535) dst=2001:db9::1
+[STATE] EPID=3/3 down
+[STATE] EPID=4/1 down
+[SELECT] Lport=5 EPID=4/5 a/b=32/8
+[FWD] 内部转发: EPID=4/5 出端口2 dst=2001:db8:500::1
+[SELECT] Lport=3 EPID=2/1 a/b=32/8
+[FWD] 内部转发: EPID=2/1 出端口1 dst=2001:db8:300::1
+[SELECT] Lport=5 EPID=4/5 a/b=32/8
+[FWD] 内部转发: EPID=4/5 出端口2 dst=2001:db8:500::1
+[FWD] 内部转发: EPID=4/5 出端口1 dst=2001:db8:500::1
+[REROUTE] 改走端口1 EPID=4/5
+[SELECT] Lport=3 EPID=2/1 a/b=32/8
+[FWD] 内部转发: EPID=2/1 出端口1 dst=2001:db8:300::1
+[SELECT] Lport=5 EPID=4/5 a/b=32/8
+[FWD] 内部转发: EPID=4/5 出端口2 dst=2001:db8:500::1
+[SELECT] Lport=3 EPID=2/1 a/b=32/8
+[FWD] 内部转发: EPID=2/1 出端口1 dst=2001:db8:300::1
